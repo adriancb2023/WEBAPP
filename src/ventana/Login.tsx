@@ -7,7 +7,11 @@ const supabaseUrl = 'https://qarctnyssctoosibzqik.supabase.co'
 const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFhcmN0bnlzc2N0b29zaWJ6cWlrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTA0MjgyNjAsImV4cCI6MjA2NjAwNDI2MH0.8ypxqQY8ONP2hJzYyeaN7L9GK07DGfSekqAU_4ARkOw'
 const supabase = createClient(supabaseUrl, supabaseAnonKey)
 
-function App() {
+interface LoginProps {
+  onLogin?: () => void;
+}
+
+function Login({ onLogin }: LoginProps) {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [message, setMessage] = useState('')
@@ -22,12 +26,13 @@ function App() {
       setMessage('Error: ' + error.message)
     } else {
       setMessage('¡Login exitoso!')
+      if (onLogin) onLogin()
     }
     setLoading(false)
   }
 
   return (
-    <div style={{ minHeight: '20vh', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative', zIndex: 1 }}>
+    <div style={{ minHeight: '100vh', width: '100vw', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'transparent', position: 'relative', zIndex: 1 }}>
       <Aurora colorStops={["#3A29FF", "#FF94B4", "#FF3232"]} blend={0.5} amplitude={1.0} speed={0.5} />
       <form onSubmit={handleLogin} style={{
         background: 'rgba(20, 20, 40, 0.55)',
@@ -71,4 +76,4 @@ function App() {
   )
 }
 
-export default App
+export default Login
