@@ -14,4 +14,35 @@
   height: 100% !important;
   width: 100% !important;
   display: block;
+}
+
+.horas-btn {
+  background: var(--horas-btn-bg, #f0f0f0);
+  color: var(--horas-btn-color, #222);
+  border: 1px solid var(--horas-btn-border, #d0d0d0);
+  border-radius: 8px;
+  padding: 6px 14px;
+  font-size: 1rem;
+  font-weight: 500;
+  margin: 0 2px;
+  cursor: pointer;
+  transition: background 0.18s, color 0.18s, border 0.18s;
+}
+.horas-btn:hover {
+  background: var(--horas-btn-hover-bg, #e0e0e0);
+  color: var(--horas-btn-hover-color, #111);
+  border-color: var(--horas-btn-hover-border, #b0b0b0);
+}
+
+@media (prefers-color-scheme: dark) {
+  .horas-btn {
+    background: var(--horas-btn-bg-dark, #23272f);
+    color: var(--horas-btn-color-dark, #f0f0f0);
+    border: 1px solid var(--horas-btn-border-dark, #444a57);
+  }
+  .horas-btn:hover {
+    background: var(--horas-btn-hover-bg-dark, #2c313a);
+    color: var(--horas-btn-hover-color-dark, #fff);
+    border-color: var(--horas-btn-hover-border-dark, #666c7a);
+  }
 } 

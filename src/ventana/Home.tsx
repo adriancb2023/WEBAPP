@@ -1,8 +1,10 @@
 import { useState } from 'react';
 import NuevoProyecto from './NuevoProyecto';
 import BotonModo from './BotonModo';
+import DetalleProyecto from './DetalleProyecto';
 
-interface Proyecto {
+export interface Factura { nombre: string; fecha: string; tipo: 'pdf' | 'img'; }
+export interface Proyecto {
   id: number;
   nombre: string;
   cliente: string;
@@ -10,12 +12,51 @@ interface Proyecto {
   horas: number;
   estadoPago: 'Pagado' | 'Sin pagar' | '50% adelantado';
   fecha: string;
+  gastos: number;
+  facturas: Factura[];
+  precioHora: number;
 }
 
 const proyectosDemo: Proyecto[] = [
-  { id: 1, nombre: 'Reforma Oficina Central', cliente: 'Empresa ABC', presupuesto: 25000, horas: 45, estadoPago: 'Sin pagar', fecha: '15/1/2024' },
-  { id: 2, nombre: 'Construcción Almacén', cliente: 'Logística XYZ', presupuesto: 85000, horas: 120, estadoPago: '50% adelantado', fecha: '1/2/2024' },
-  { id: 3, nombre: 'Instalación Cocina Industrial', cliente: 'Restaurante Gourmet', presupuesto: 35000, horas: 32, estadoPago: 'Pagado', fecha: '15/2/2024' },
+  {
+    id: 1,
+    nombre: 'Reforma Oficina Central',
+    cliente: 'Empresa ABC',
+    presupuesto: 25000,
+    horas: 45,
+    estadoPago: 'Sin pagar',
+    fecha: '15/1/2024',
+    gastos: 8750,
+    facturas: [
+      { nombre: 'Factura_001.pdf', fecha: '2024-02-01', tipo: 'pdf' },
+      { nombre: 'Recibo_materiales.jpg', fecha: '2024-02-01', tipo: 'img' },
+    ],
+    precioHora: 20,
+  },
+  {
+    id: 2,
+    nombre: 'Construcción Almacén',
+    cliente: 'Logística XYZ',
+    presupuesto: 85000,
+    horas: 120,
+    estadoPago: '50% adelantado',
+    fecha: '1/2/2024',
+    gastos: 0,
+    facturas: [],
+    precioHora: 25,
+  },
+  {
+    id: 3,
+    nombre: 'Instalación Cocina Industrial',
+    cliente: 'Restaurante Gourmet',
+    presupuesto: 35000,
+    horas: 32,
+    estadoPago: 'Pagado',
+    fecha: '15/2/2024',
+    gastos: 0,
+    facturas: [],
+    precioHora: 30,
+  },
 ];
 
 const estadoColor = {
@@ -25,9 +66,10 @@ const estadoColor = {
 };
 
 export default function Home() {
-  const [proyectos] = useState<Proyecto[]>(proyectosDemo);
+  const [proyectos, setProyectos] = useState<Proyecto[]>(proyectosDemo);
   const [modoOscuro, setModoOscuro] = useState(false);
   const [mostrarNuevo, setMostrarNuevo] = useState(false);
+  const [detalle, setDetalle] = useState<Proyecto|null>(null);
 
   // Estadísticas rápidas
   const totalProyectos = proyectos.length;
@@ -53,6 +95,19 @@ export default function Home() {
 
   if (mostrarNuevo) {
     return <NuevoProyecto onBack={() => setMostrarNuevo(false)} onSave={() => setMostrarNuevo(false)} modoOscuro={modoOscuro} setModoOscuro={setModoOscuro} />;
+  }
+
+  if (detalle) {
+    return <DetalleProyecto
+      proyecto={detalle}
+      modoOscuro={modoOscuro}
+      setModoOscuro={setModoOscuro}
+      onBack={() => setDetalle(null)}
+      onSave={p => {
+        setProyectos(ps => ps.map(proj => proj.id === p.id ? p : proj));
+        setDetalle(null);
+      }}
+    />;
   }
 
   return (
@@ -121,7 +176,7 @@ export default function Home() {
       <div className="home-main" style={{ paddingBottom: 24 }}>
         <div className="proyectos-grid">
           {proyectos.map(proyecto => (
-            <div key={proyecto.id} className="proyecto-card" style={{ background: cardBg, borderRadius: 20, boxShadow: '0 12px 36px 0 rgba(58,41,255,0.10), 0 1.5px 6px 0 rgba(0,0,0,0.06)', padding: 28, display: 'flex', flexDirection: 'column', gap: 8, border: `1.5px solid ${cardBorder}`, color: textColor }}>
+            <div key={proyecto.id} className="proyecto-card" style={{ background: cardBg, borderRadius: 20, boxShadow: '0 12px 36px 0 rgba(58,41,255,0.10), 0 1.5px 6px 0 rgba(0,0,0,0.06)', padding: 28, display: 'flex', flexDirection: 'column', gap: 8, border: `1.5px solid ${cardBorder}`, color: textColor, cursor: 'pointer' }} onClick={() => setDetalle(proyecto)}>
               <div style={{ fontWeight: 700, fontSize: 17, marginBottom: 2 }}>{proyecto.nombre}</div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: subTextColor, fontSize: 15, marginBottom: 2 }}>
                 <span role="img" aria-label="cliente">👤</span> {proyecto.cliente}
