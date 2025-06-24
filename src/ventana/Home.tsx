@@ -3,6 +3,8 @@ import NuevoProyecto from './NuevoProyecto';
 import BotonModo from './BotonModo';
 import DetalleProyecto from './DetalleProyecto';
 import Clientes from './Clientes';
+import Estadisticas from './Estadisticas';
+import Calculadora from './Calculadora';
 
 export interface Factura { nombre: string; fecha: string; tipo: 'pdf' | 'img'; }
 export interface Proyecto {
@@ -76,6 +78,8 @@ export default function Home() {
   const [detalle, setDetalle] = useState<Proyecto|null>(null);
   const [proyectoFocus, setProyectoFocus] = useState<number|null>(null);
   const [mostrarClientes, setMostrarClientes] = useState(false);
+  const [mostrarEstadisticas, setMostrarEstadisticas] = useState(false);
+  const [mostrarCalculadora, setMostrarCalculadora] = useState(false);
 
   // Leer preferencia de localStorage al iniciar
   useEffect(() => {
@@ -126,6 +130,14 @@ export default function Home() {
 
   if (mostrarClientes) {
     return <Clientes onVolver={() => setMostrarClientes(false)} />;
+  }
+
+  if (mostrarEstadisticas) {
+    return <Estadisticas proyectos={proyectos} modoOscuro={modoOscuro} setModoOscuro={setModoOscuro} onVolver={() => setMostrarEstadisticas(false)} />;
+  }
+
+  if (mostrarCalculadora) {
+    return <Calculadora modoOscuro={modoOscuro} setModoOscuro={setModoOscuro} onVolver={() => setMostrarCalculadora(false)} />;
   }
 
   return (
@@ -186,9 +198,13 @@ export default function Home() {
             </div>
           </div>
           <div className="home-header-btns" style={{ display: 'flex', alignItems: 'center', gap: 10, overflowX: 'auto', padding: '2px 0', WebkitOverflowScrolling: 'touch', maxWidth: '100vw' }}>
-            <button className="uiverse-btn estadisticas-btn" aria-label="Estadísticas" onClick={() => alert('Sección de estadísticas próximamente')}>
+            <button className="uiverse-btn estadisticas-btn" aria-label="Estadísticas" onClick={() => setMostrarEstadisticas(true)}>
               <span role="img" aria-label="estadísticas" style={{ fontSize: 18 }}>📊</span>
               <span className="btn-texto-responsive"> Estadísticas</span>
+            </button>
+            <button className="uiverse-btn calculadora-btn" aria-label="Calculadora" onClick={() => setMostrarCalculadora(true)}>
+              <span role="img" aria-label="calculadora" style={{ fontSize: 18 }}>🧮</span>
+              <span className="btn-texto-responsive"> Calculadora</span>
             </button>
             <button className="uiverse-btn clientes-btn" aria-label="Clientes" onClick={() => setMostrarClientes(true)}>
               <span role="img" aria-label="clientes" style={{ fontSize: 18 }}>👥</span>
