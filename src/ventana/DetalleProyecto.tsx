@@ -38,9 +38,12 @@ export default function DetalleProyecto({ proyecto, modoOscuro, setModoOscuro, o
         .detalle-main { max-width: 1100px; margin: 0 auto; padding: 24px 8px 64px 8px; }
         .detalle-card { background: ${cardBg}; border-radius: 16px; box-shadow: 0 4px 24px 0 rgba(58,41,255,0.08); padding: 24px; margin-bottom: 18px; }
         .detalle-label { color: ${subTextColor}; font-weight: 600; font-size: 15px; }
-        .detalle-input { background: ${modoOscuro ? '#23272f' : '#fafdff'}; color: ${textColor}; border: 1.5px solid #e0e8f7; border-radius: 8px; padding: 8px 12px; font-size: 16px; margin-top: 6px; width: 100%; }
+        .detalle-input { background: transparent; color: ${textColor}; border: 1.5px solid ${modoOscuro ? '#444' : '#3A8BFF'}; border-radius: 8px; padding: 8px 12px; font-size: 16px; margin-top: 6px; width: 100%; transition: border 0.2s, color 0.2s; }
+        .detalle-input:focus { outline: none; border: 2px solid ${modoOscuro ? '#A259FF' : '#3A29FF'}; }
         .horas-btn { font-size: 28px; border: none; background: linear-gradient(90deg, #3A8BFF 0%, #A259FF 100%); color: #fff; border-radius: 50%; width: 48px; height: 48px; cursor: pointer; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 8px 0 rgba(58,41,255,0.10); margin: 0 8px; transition: filter 0.18s; }
+        .horas-btn:focus, .horas-btn:hover { filter: brightness(1.15); outline: 2px solid ${modoOscuro ? '#A259FF' : '#3A29FF'}; }
         .horas-btn:active { filter: brightness(0.95); }
+        .horas-btn { border: 2px solid ${modoOscuro ? '#A259FF' : '#3A8BFF'}; }
         .horas-num { font-weight: 800; font-size: 28px; min-width: 48px; text-align: center; }
         .guardar-btn { display: block; margin: 32px auto 0 auto; background: linear-gradient(90deg, #3A8BFF 0%, #A259FF 100%); color: #fff; border: none; border-radius: 12px; padding: 18px 44px; font-weight: 700; font-size: 20px; box-shadow: 0 4px 24px 0 rgba(58,41,255,0.10); cursor: pointer; transition: background 0.2s, color 0.2s, box-shadow 0.2s; opacity: 0.97; }
         .guardar-btn:hover { filter: brightness(1.08); opacity: 1; }
@@ -72,7 +75,7 @@ export default function DetalleProyecto({ proyecto, modoOscuro, setModoOscuro, o
           <div>Beneficio: <span style={{ color: '#27ae60', fontWeight: 700 }}>€{(editado.presupuesto - editado.gastos).toLocaleString('es-ES')}</span></div>
           <div style={{ marginTop: 14 }}>
             <span className="detalle-label">Precio por hora: </span>
-            <input type="number" min={0} value={precioHora} onChange={e => setPrecioHora(Number(e.target.value))} style={{ width: 100, marginLeft: 8, marginRight: 8, padding: 6, borderRadius: 8, border: '1.5px solid #e0e8f7', fontSize: 16, background: '#fafdff', color: textColor }} />
+            <input type="number" min={0} value={precioHora} onChange={e => setPrecioHora(Number(e.target.value))} className="detalle-input" style={{ width: 100, marginLeft: 8, marginRight: 8, textAlign: 'center' }} />
             <span className="detalle-label">Total horas x precio: </span>
             <span style={{ fontWeight: 700, color: '#3A29FF', marginLeft: 6 }}>€{totalHorasPrecio.toLocaleString('es-ES')}</span>
           </div>
@@ -91,10 +94,6 @@ export default function DetalleProyecto({ proyecto, modoOscuro, setModoOscuro, o
             <button className="horas-btn" onClick={() => setEditado((e: Proyecto) => ({ ...e, horas: e.horas + 4 }))}>+4</button>
             <button className="horas-btn" onClick={() => setEditado((e: Proyecto) => ({ ...e, horas: e.horas + 8 }))}>+8</button>
           </div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 15, color: subTextColor }}>
-            <button onClick={() => setEditado((e: Proyecto) => ({ ...e, horas: e.horas + 8 }))} style={{ background: '#f3f6fa', border: 'none', borderRadius: 8, padding: '6px 12px', cursor: 'pointer', fontWeight: 600 }}>+8h (Día completo)</button>
-            <button onClick={() => setEditado((e: Proyecto) => ({ ...e, horas: e.horas + 4 }))} style={{ background: '#f3f6fa', border: 'none', borderRadius: 8, padding: '6px 12px', cursor: 'pointer', fontWeight: 600 }}>+4h (Medio día)</button>
-          </div>
         </div>
         {/* Estado de pago */}
         <div className="detalle-card">
@@ -107,15 +106,25 @@ export default function DetalleProyecto({ proyecto, modoOscuro, setModoOscuro, o
         </div>
         {/* Facturas (lista con modal) */}
         <div className="detalle-card">
-          <div className="detalle-label" style={{ marginBottom: 8 }}>Facturas ({facturas.length})</div>
+          <div className="detalle-label" style={{ marginBottom: 8, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <span>Facturas ({facturas.length})</span>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', background: modoOscuro ? '#23272f' : '#f3f6fa', border: `1.5px solid ${modoOscuro ? '#A259FF' : '#3A8BFF'}`, borderRadius: 8, padding: '6px 14px', fontWeight: 600, color: modoOscuro ? '#A259FF' : '#3A29FF', fontSize: 15 }}>
+              <span style={{ fontSize: 18 }}>+ Añadir factura</span>
+              <input type="file" accept="image/*,application/pdf" capture="environment" style={{ display: 'none' }} onChange={e => {
+                if (!e.target.files || !e.target.files[0]) return;
+                // Aquí puedes gestionar la subida o previsualización
+                alert('Funcionalidad de subida de factura aún no implementada.');
+              }} />
+            </label>
+          </div>
           <ul style={{ padding: 0, margin: 0, listStyle: 'none' }}>
             {facturas.length === 0 && <li style={{ color: subTextColor }}>No hay facturas</li>}
             {facturas.map((f, i) => (
-              <li key={i} style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 10, background: '#fafdff', borderRadius: 8, padding: '10px 14px' }}>
-                <span style={{ fontWeight: 600 }}>{f.nombre}</span>
+              <li key={i} style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 10, background: modoOscuro ? '#181a20' : '#fafdff', borderRadius: 8, padding: '10px 14px', boxShadow: modoOscuro ? '0 2px 8px 0 rgba(162,89,255,0.10)' : '0 2px 8px 0 rgba(58,41,255,0.08)' }}>
+                <span style={{ fontWeight: 600, color: modoOscuro ? '#fff' : '#222' }}>{f.nombre}</span>
                 <span style={{ color: subTextColor, fontSize: 13 }}>{f.fecha}</span>
-                <span style={{ color: '#888', fontSize: 13 }}>{f.tipo === 'pdf' ? 'PDF' : 'IMG'}</span>
-                <button onClick={() => setFacturaVer(i)} style={{ marginLeft: 'auto', background: 'linear-gradient(90deg, #3A8BFF 0%, #A259FF 100%)', color: '#fff', border: 'none', borderRadius: 8, padding: '6px 18px', fontWeight: 700, fontSize: 15, cursor: 'pointer' }}>Ver</button>
+                <span style={{ color: f.tipo === 'pdf' ? '#3A29FF' : '#A259FF', fontSize: 13, fontWeight: 700 }}>{f.tipo === 'pdf' ? 'PDF' : 'IMG'}</span>
+                <button onClick={() => setFacturaVer(i)} style={{ marginLeft: 'auto', background: 'linear-gradient(90deg, #3A8BFF 0%, #A259FF 100%)', color: '#fff', border: 'none', borderRadius: 8, padding: '6px 18px', fontWeight: 700, fontSize: 15, cursor: 'pointer', boxShadow: modoOscuro ? '0 2px 8px 0 rgba(162,89,255,0.10)' : '0 2px 8px 0 rgba(58,41,255,0.08)' }}>Ver</button>
               </li>
             ))}
           </ul>

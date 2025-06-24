@@ -4,7 +4,7 @@ import BotonModo from './BotonModo';
 interface Cliente {
   id: number;
   nombre: string;
-  telefono: string;
+  telefono: string; // Teléfono o móvil
   email: string;
   direccion: string;
   notas: string;
@@ -39,16 +39,22 @@ export default function Clientes({ onVolver }: { onVolver?: () => void } = {}) {
   const [clienteEdit, setClienteEdit] = useState<Cliente | undefined>(undefined);
   const [busqueda, setBusqueda] = useState('');
   const [modoOscuro, setModoOscuro] = useState(() => {
-    const guardado = localStorage.getItem('modoOscuroClientes');
-    return guardado ? guardado === 'true' : false;
+    const global = localStorage.getItem('modoOscuro');
+    return global ? global === 'true' : false;
   });
 
   // Detectar si es móvil
   const esMovil = typeof window !== 'undefined' && window.innerWidth <= 900;
   const [mostrarDetalleMovil, setMostrarDetalleMovil] = useState(false);
 
+  // Estado para modo edición inline
+  const [editandoInline, setEditandoInline] = useState(false);
+  const [formInline, setFormInline] = useState<Omit<Cliente, 'id' | 'proyectos'>>({
+    nombre: '', telefono: '', email: '', direccion: '', notas: ''
+  });
+
   useEffect(() => {
-    localStorage.setItem('modoOscuroClientes', modoOscuro.toString());
+    localStorage.setItem('modoOscuro', modoOscuro.toString());
   }, [modoOscuro]);
 
   useEffect(() => {
@@ -58,6 +64,21 @@ export default function Clientes({ onVolver }: { onVolver?: () => void } = {}) {
       setMostrarDetalleMovil(false);
     }
   }, [seleccionado, modal.visible, esMovil]);
+
+  // Sincronizar modoOscuro con el global
+  useEffect(() => {
+    const syncModo = () => {
+      const global = localStorage.getItem('modoOscuro');
+      if (global !== null) setModoOscuro(global === 'true');
+    };
+    window.addEventListener('storage', syncModo);
+    syncModo();
+    return () => window.removeEventListener('storage', syncModo);
+  }, []);
+
+  useEffect(() => {
+    localStorage.setItem('modoOscuro', modoOscuro.toString());
+  }, [modoOscuro]);
 
   // Filtrado de clientes
   const clientesFiltrados = useMemo(() => {
@@ -116,6 +137,18 @@ export default function Clientes({ onVolver }: { onVolver?: () => void } = {}) {
   const btnBg = modoOscuro ? 'linear-gradient(90deg, #23272f 0%, #3A29FF 100%)' : 'linear-gradient(90deg, #3A8BFF 0%, #A259FF 100%)';
   const btnColor = '#fff';
 
+  useEffect(() => {
+    if (seleccionado && editandoInline) {
+      setFormInline({
+        nombre: seleccionado.nombre,
+        telefono: seleccionado.telefono,
+        email: seleccionado.email,
+        direccion: seleccionado.direccion,
+        notas: seleccionado.notas,
+      });
+    }
+  }, [seleccionado, editandoInline]);
+
   // Card para el formulario de cliente
   function CardFormularioCliente(props: any) {
     return (
@@ -162,7 +195,7 @@ export default function Clientes({ onVolver }: { onVolver?: () => void } = {}) {
             <input name="nombre" value={form.nombre} onChange={handleChange} onBlur={() => setTocado(t => ({...t, nombre: true}))} style={{ width: '100%', marginTop: 6, marginBottom: 8, padding: 10, borderRadius: 8, border: `1.5px solid ${cardBorder}`, fontSize: 15, background: modoOscuro ? '#23272f' : '#fff', color: textColor }} />
             {tocado.nombre && !form.nombre.trim() && <span style={{ color: '#e74c3c', fontSize: 13 }}>Obligatorio</span>}
           </label>
-          <label style={{ fontWeight: 600, fontSize: 15 }}>Teléfono
+          <label style={{ fontWeight: 600, fontSize: 15 }}>Teléfono o móvil
             <input name="telefono" value={form.telefono} onChange={handleChange} onBlur={() => setTocado(t => ({...t, telefono: true}))} style={{ width: '100%', marginTop: 6, marginBottom: 8, padding: 10, borderRadius: 8, border: `1.5px solid ${cardBorder}`, fontSize: 15, background: modoOscuro ? '#23272f' : '#fff', color: textColor }} />
             {tocado.telefono && !form.telefono.trim() && <span style={{ color: '#e74c3c', fontSize: 13 }}>Obligatorio</span>}
           </label>
@@ -256,20 +289,59 @@ export default function Clientes({ onVolver }: { onVolver?: () => void } = {}) {
             </button>
           )}
           <div style={{ background: cardBg, borderRadius: 18, boxShadow: '0 8px 32px 0 rgba(58,41,255,0.10)', padding: 32, minWidth: esMovil ? 0 : 340, maxWidth: 480, width: esMovil ? '96vw' : '100%', border: `1.5px solid ${cardBorder}`, margin: '0 auto', color: textColor, marginTop: esMovil ? 24 : 0 }}>
-            <h3 style={{ marginTop: 0, fontWeight: 800, fontSize: 20 }}>{seleccionado.nombre}</h3>
-            <div style={{ marginBottom: 10 }}><b>Teléfono:</b> {seleccionado.telefono}</div>
-            <div style={{ marginBottom: 10 }}><b>Email:</b> {seleccionado.email}</div>
-            <div style={{ marginBottom: 10 }}><b>Dirección:</b> {seleccionado.direccion}</div>
-            <div style={{ marginBottom: 10 }}><b>Notas:</b> <span style={{ color: '#7c3aed' }}>{seleccionado.notas}</span></div>
-            <div style={{ marginBottom: 10 }}><b>Proyectos asociados:</b>
-              <ul style={{ margin: '6px 0 0 18px', padding: 0 }}>
-                {seleccionado.proyectos.map((p, i) => <li key={i}>{p}</li>)}
-              </ul>
-            </div>
-            <div style={{ display: 'flex', gap: 10, marginTop: 18 }}>
-              <button className="uiverse-btn" style={{ background: '#7c3aed' }} onClick={() => { setModal({ visible: true, editar: true }); setClienteEdit(seleccionado); }}>Editar</button>
-              <button className="uiverse-btn" style={{ background: '#e74c3c' }} onClick={() => handleDelete(seleccionado.id)}>Eliminar</button>
-            </div>
+            {editandoInline ? (
+              <>
+                <h3 style={{ marginTop: 0, fontWeight: 800, fontSize: 20 }}>Editar cliente</h3>
+                <label style={{ fontWeight: 600, fontSize: 15 }}>Nombre
+                  <input name="nombre" value={formInline.nombre} onChange={e => setFormInline(f => ({ ...f, nombre: e.target.value }))} style={{ width: '100%', marginTop: 6, marginBottom: 8, padding: 10, borderRadius: 8, border: `1.5px solid ${cardBorder}`, fontSize: 15, background: modoOscuro ? '#23272f' : '#fff', color: textColor }} />
+                </label>
+                <label style={{ fontWeight: 600, fontSize: 15 }}>Teléfono o móvil
+                  <input name="telefono" value={formInline.telefono} onChange={e => setFormInline(f => ({ ...f, telefono: e.target.value }))} style={{ width: '100%', marginTop: 6, marginBottom: 8, padding: 10, borderRadius: 8, border: `1.5px solid ${cardBorder}`, fontSize: 15, background: modoOscuro ? '#23272f' : '#fff', color: textColor }} />
+                </label>
+                <label style={{ fontWeight: 600, fontSize: 15 }}>Email
+                  <input name="email" value={formInline.email} onChange={e => setFormInline(f => ({ ...f, email: e.target.value }))} style={{ width: '100%', marginTop: 6, marginBottom: 8, padding: 10, borderRadius: 8, border: `1.5px solid ${cardBorder}`, fontSize: 15, background: modoOscuro ? '#23272f' : '#fff', color: textColor }} />
+                </label>
+                <label style={{ fontWeight: 600, fontSize: 15 }}>Dirección
+                  <input name="direccion" value={formInline.direccion} onChange={e => setFormInline(f => ({ ...f, direccion: e.target.value }))} style={{ width: '100%', marginTop: 6, marginBottom: 8, padding: 10, borderRadius: 8, border: `1.5px solid ${cardBorder}`, fontSize: 15, background: modoOscuro ? '#23272f' : '#fff', color: textColor }} />
+                </label>
+                <label style={{ fontWeight: 600, fontSize: 15 }}>Notas
+                  <textarea name="notas" value={formInline.notas} onChange={e => setFormInline(f => ({ ...f, notas: e.target.value }))} style={{ width: '100%', marginTop: 6, marginBottom: 8, padding: 10, borderRadius: 8, border: `1.5px solid ${cardBorder}`, fontSize: 15, minHeight: 60, background: modoOscuro ? '#23272f' : '#fff', color: textColor }} />
+                </label>
+                <button className="uiverse-btn" style={{ marginTop: 12, width: '100%' }}
+                  onClick={() => {
+                    handleEdit(formInline);
+                    setEditandoInline(false);
+                  }}
+                  disabled={!(formInline.nombre.trim() && formInline.telefono.trim() && formInline.email.trim() && formInline.direccion.trim())}
+                >
+                  Guardar cambios
+                </button>
+                <button className="uiverse-btn" style={{ marginTop: 8, width: '100%', background: '#b0b8c1', color: '#222' }} onClick={() => setEditandoInline(false)}>
+                  Cancelar
+                </button>
+              </>
+            ) : (
+              <>
+                <h3 style={{ marginTop: 0, fontWeight: 800, fontSize: 20 }}>{seleccionado.nombre}</h3>
+                <div style={{ marginBottom: 10 }}><b>Teléfono o móvil:</b> {seleccionado.telefono ? (
+                  <a href={`tel:${seleccionado.telefono}`} style={{ color: '#3A8BFF', textDecoration: 'underline', fontWeight: 600 }}>
+                    {seleccionado.telefono}
+                  </a>
+                ) : '—'}</div>
+                <div style={{ marginBottom: 10 }}><b>Email:</b> {seleccionado.email}</div>
+                <div style={{ marginBottom: 10 }}><b>Dirección:</b> {seleccionado.direccion}</div>
+                <div style={{ marginBottom: 10 }}><b>Notas:</b> <span style={{ color: '#7c3aed' }}>{seleccionado.notas}</span></div>
+                <div style={{ marginBottom: 10 }}><b>Proyectos asociados:</b>
+                  <ul style={{ margin: '6px 0 0 18px', padding: 0 }}>
+                    {seleccionado.proyectos.map((p, i) => <li key={i}>{p}</li>)}
+                  </ul>
+                </div>
+                <div style={{ display: 'flex', gap: 10, marginTop: 18 }}>
+                  <button className="uiverse-btn" style={{ background: '#7c3aed' }} onClick={() => setEditandoInline(true)}>Editar</button>
+                  <button className="uiverse-btn" style={{ background: '#e74c3c' }} onClick={() => handleDelete(seleccionado.id)}>Eliminar</button>
+                </div>
+              </>
+            )}
           </div>
         </div>
       )}
