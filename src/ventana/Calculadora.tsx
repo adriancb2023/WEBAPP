@@ -95,6 +95,8 @@ export default function Calculadora({ modoOscuro, setModoOscuro, onVolver }: {
                   <span style={{ fontWeight: 600 }}>{mat.nombre}</span>
                   <input type="number" min={1} value={mat.cantidad} onChange={e => cambiarCantidad(mat.nombre, Number(e.target.value))} style={{ width: 60, fontSize: 15, borderRadius: 8, padding: '6px 8px', border: `1.5px solid ${modoOscuro ? '#A259FF' : '#3A8BFF'}`, background: modoOscuro ? '#23272f' : '#fff', color: textColor, textAlign: 'center' }} />
                   <span style={{ color: subTextColor, fontSize: 14 }}>{mat.unidad}</span>
+                  <input type="number" min={0} step={0.01} value={mat.precio} onChange={e => setCarrito(cs => cs.map(c => c.nombre === mat.nombre ? { ...c, precio: Number(e.target.value) } : c))} style={{ width: 70, fontSize: 15, borderRadius: 8, padding: '6px 8px', border: `1.5px solid ${modoOscuro ? '#A259FF' : '#3A8BFF'}`, background: modoOscuro ? '#23272f' : '#fff', color: textColor, textAlign: 'center' }} />
+                  <span style={{ color: subTextColor, fontSize: 14 }}>€/u</span>
                   <span style={{ color: '#3A8BFF', fontWeight: 700, fontSize: 15 }}>€{(mat.precio * mat.cantidad).toLocaleString('es-ES')}</span>
                   <button className="uiverse-btn" style={{ marginLeft: 'auto', background: '#e74c3c', color: '#fff', border: 'none', borderRadius: 8, padding: '6px 12px', fontWeight: 700, fontSize: 15, cursor: 'pointer' }} onClick={() => eliminarMaterial(mat.nombre)}>Eliminar</button>
                 </li>
