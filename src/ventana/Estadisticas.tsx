@@ -2,6 +2,9 @@ import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, LineChart, L
 import { useState, useMemo } from 'react';
 import BotonModo from './BotonModo';
 import type { Proyecto } from './Home';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
+import html2canvas from 'html2canvas';
 
 // Recibe los proyectos y el modo oscuro como props
 export default function Estadisticas({ proyectos, modoOscuro, setModoOscuro, onVolver }: {
@@ -23,13 +26,23 @@ export default function Estadisticas({ proyectos, modoOscuro, setModoOscuro, onV
   // Por defecto, último mes disponible
   const [mes, setMes] = useState(mesesDisponibles[0] || '');
 
-  // Filtrar proyectos del mes seleccionado
-  const proyectosMes = useMemo(() => {
+  // Estado para fechas personalizadas
+  const hoyStr = new Date().toISOString().slice(0, 10);
+  const primerDiaMes = hoyStr.slice(0, 8) + '01';
+  const [desde, setDesde] = useState(primerDiaMes);
+  const [hasta, setHasta] = useState(hoyStr);
+
+  // Filtrar proyectos por rango de fechas
+  const proyectosRango = useMemo(() => {
     return proyectos.filter(p => {
       const [d, m, y] = p.fecha.split('/');
-      return `${y}-${m.padStart(2, '0')}` === mes;
+      const fecha = new Date(Number(y), Number(m) - 1, Number(d));
+      return fecha >= new Date(desde) && fecha <= new Date(hasta);
     });
-  }, [proyectos, mes]);
+  }, [proyectos, desde, hasta]);
+
+  // El resto de cálculos usan proyectosRango en vez de proyectosMes
+  const proyectosMes = proyectosRango;
 
   // Preparar datos para gráficas
   const datos = useMemo(() => {
@@ -77,6 +90,121 @@ export default function Estadisticas({ proyectos, modoOscuro, setModoOscuro, onV
   // Número de clientes únicos (solo para admin)
   const totalClientes = esAdmin ? new Set(proyectosMes.map(p => p.cliente)).size : null;
 
+  // Estadísticas de clientes (solo admin)
+  let rankingClientes: {cliente: string, ingresos: number, proyectos: number}[] = [];
+  if (esAdmin) {
+    const mapa = new Map<string, {ingresos: number, proyectos: number}>();
+    proyectosMes.forEach(p => {
+      if (!mapa.has(p.cliente)) mapa.set(p.cliente, { ingresos: 0, proyectos: 0 });
+      const v = mapa.get(p.cliente)!;
+      v.ingresos += p.presupuesto;
+      v.proyectos += 1;
+    });
+    rankingClientes = Array.from(mapa.entries()).map(([cliente, v]) => ({ cliente, ...v }))
+      .sort((a, b) => b.ingresos - a.ingresos);
+  }
+
+  // Estado para feedback de exportación
+  const [exportando, setExportando] = useState(false);
+  const [mensajeExport, setMensajeExport] = useState<string|null>(null);
+
+  // Función para exportar a PDF (ahora incluye feedback visual y manejo de errores)
+  const exportarPDF = async () => {
+    setExportando(true);
+    setMensajeExport('Generando PDF, por favor espera...');
+    try {
+      const doc = new jsPDF();
+      // Cabecera
+      doc.setFontSize(18);
+      doc.text('Resumen de Estadísticas', 14, 18);
+      doc.setFontSize(12);
+      doc.text(`Rango: ${desde} a ${hasta}`, 14, 26);
+      // Resumen
+      doc.setFontSize(11);
+      doc.setTextColor(40);
+      doc.text(`Proyectos activos: ${totalProyectos}`, 14, 36);
+      doc.text(`Ingresos: €${totalIngresos.toLocaleString('es-ES')}`, 14, 44);
+      doc.text(`Gastos: €${totalGastos.toLocaleString('es-ES')}`, 14, 52);
+      doc.text(`Beneficio: €${totalBeneficio.toLocaleString('es-ES')}`, 14, 60);
+      if (esAdmin) doc.text(`Clientes únicos: ${totalClientes}`, 14, 68);
+      // Próximos vencimientos
+      let y = esAdmin ? 76 : 68;
+      if (vencimientos.length > 0) {
+        doc.setFontSize(11);
+        doc.setTextColor(80);
+        doc.text('Próximos vencimientos:', 14, y);
+        vencimientos.forEach((p, i) => {
+          doc.text(`- ${p.nombre} (${p.cliente}) ${p.fecha}`, 18, y + 8 + i * 8);
+        });
+        y += 8 * (vencimientos.length + 1);
+      }
+      // Ranking de clientes (solo admin)
+      if (esAdmin && rankingClientes.length > 0) {
+        doc.setFontSize(13);
+        doc.setTextColor(30);
+        doc.text('Ranking de clientes (por ingresos):', 14, y + 10);
+        autoTable(doc, {
+          startY: y + 14,
+          head: [['Cliente', 'Ingresos', 'Proyectos']],
+          body: rankingClientes.map(c => [c.cliente, `€${c.ingresos.toLocaleString('es-ES')}`, c.proyectos]),
+          theme: 'striped',
+          headStyles: { fillColor: [58, 41, 255] },
+          styles: { fontSize: 10 },
+          margin: { left: 14, right: 14 }
+        });
+        y = (doc as any).lastAutoTable.finalY || y + 30;
+      }
+      // Tabla de proyectos
+      doc.setFontSize(13);
+      doc.setTextColor(30);
+      doc.text('Proyectos:', 14, y + 10);
+      autoTable(doc, {
+        startY: y + 14,
+        head: [[
+          'Nombre', 'Cliente', 'Fecha', 'Presupuesto', 'Gastos', 'Beneficio'
+        ]],
+        body: proyectosMes.map(p => [
+          p.nombre,
+          p.cliente,
+          p.fecha,
+          `€${p.presupuesto.toLocaleString('es-ES')}`,
+          `€${p.gastos.toLocaleString('es-ES')}`,
+          `€${(p.presupuesto - p.gastos).toLocaleString('es-ES')}`
+        ]),
+        theme: 'striped',
+        headStyles: { fillColor: [58, 41, 255] },
+        styles: { fontSize: 10 },
+        margin: { left: 14, right: 14 }
+      });
+      y = (doc as any).lastAutoTable.finalY || y + 30;
+      // Gráficas como imágenes
+      const graficas = [
+        document.getElementById('grafica-gastos'),
+        document.getElementById('grafica-horas'),
+        document.getElementById('grafica-ingresos-hora')
+      ];
+      for (let i = 0; i < graficas.length; i++) {
+        const el = graficas[i];
+        if (el) {
+          const canvas = await html2canvas(el);
+          const imgData = canvas.toDataURL('image/png');
+          doc.addPage();
+          doc.setFontSize(15);
+          doc.text(['Gráfica', i === 0 ? 'Gastos e ingresos' : i === 1 ? 'Horas trabajadas' : 'Ingresos por hora'], 14, 20);
+          doc.addImage(imgData, 'PNG', 14, 30, 180, 80);
+        }
+      }
+      doc.save(`estadisticas_${desde}_a_${hasta}.pdf`);
+      setMensajeExport('¡PDF generado y descargado!');
+      setTimeout(() => setMensajeExport(null), 2500);
+    } catch (err: any) {
+      setMensajeExport(null);
+      alert('Error al generar el PDF: ' + (err?.message || err));
+    } finally {
+      setExportando(false);
+    }
+  };
+
   return (
     <div style={{ minHeight: '100vh', width: '100vw', background: bgColor, color: textColor, fontFamily: 'inherit', transition: 'background 0.3s, color 0.3s', position: 'relative' }}>
       <BotonModo modoOscuro={modoOscuro} setModoOscuro={setModoOscuro} />
@@ -84,9 +212,15 @@ export default function Estadisticas({ proyectos, modoOscuro, setModoOscuro, onV
         <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 24 }}>
           <button onClick={onVolver} style={{ background: 'none', border: 'none', color: '#3A29FF', fontWeight: 700, fontSize: 18, cursor: 'pointer' }}>&larr; Volver</button>
           <h1 style={{ fontWeight: 800, fontSize: 28, margin: 0, flex: 1 }}>Estadísticas</h1>
-          <select value={mes} onChange={e => setMes(e.target.value)} style={{ fontSize: 16, borderRadius: 8, padding: '6px 12px', border: `1.5px solid ${modoOscuro ? '#A259FF' : '#3A8BFF'}`, background: cardBg, color: textColor }}>
-            {mesesDisponibles.map(m => <option key={m} value={m}>{m}</option>)}
-          </select>
+          {/* Selector de fechas */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 18, flexWrap: 'wrap' }}>
+            <label style={{ fontWeight: 600, color: subTextColor, fontSize: 15 }}>Desde
+              <input type="date" value={desde} onChange={e => setDesde(e.target.value)} style={{ marginLeft: 8, borderRadius: 8, border: `1.5px solid ${modoOscuro ? '#A259FF' : '#3A8BFF'}`, background: cardBg, color: textColor, fontSize: 15, padding: '6px 10px' }} />
+            </label>
+            <label style={{ fontWeight: 600, color: subTextColor, fontSize: 15 }}>Hasta
+              <input type="date" value={hasta} onChange={e => setHasta(e.target.value)} style={{ marginLeft: 8, borderRadius: 8, border: `1.5px solid ${modoOscuro ? '#A259FF' : '#3A8BFF'}`, background: cardBg, color: textColor, fontSize: 15, padding: '6px 10px' }} />
+            </label>
+          </div>
         </div>
         {/* DASHBOARD RESUMEN */}
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 18, marginBottom: 32 }}>
@@ -127,7 +261,7 @@ export default function Estadisticas({ proyectos, modoOscuro, setModoOscuro, onV
           </div>
         )}
         {/* Gráfica 1: Gastos e ingresos */}
-        <div style={{ background: cardBg, borderRadius: 18, boxShadow: '0 8px 32px 0 rgba(58,41,255,0.10)', padding: 24, marginBottom: 32 }}>
+        <div id="grafica-gastos" style={{ background: cardBg, borderRadius: 18, boxShadow: '0 8px 32px 0 rgba(58,41,255,0.10)', padding: 24, marginBottom: 32 }}>
           <h2 style={{ fontWeight: 700, fontSize: 20, marginBottom: 12, color: textColor }}>Gastos e ingresos</h2>
           <ResponsiveContainer width="100%" height={260}>
             <BarChart data={datos} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
@@ -142,7 +276,7 @@ export default function Estadisticas({ proyectos, modoOscuro, setModoOscuro, onV
           </ResponsiveContainer>
         </div>
         {/* Gráfica 2: Horas */}
-        <div style={{ background: cardBg, borderRadius: 18, boxShadow: '0 8px 32px 0 rgba(58,41,255,0.10)', padding: 24, marginBottom: 32 }}>
+        <div id="grafica-horas" style={{ background: cardBg, borderRadius: 18, boxShadow: '0 8px 32px 0 rgba(58,41,255,0.10)', padding: 24, marginBottom: 32 }}>
           <h2 style={{ fontWeight: 700, fontSize: 20, marginBottom: 12, color: textColor }}>Horas trabajadas</h2>
           <ResponsiveContainer width="100%" height={220}>
             <LineChart data={datos} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
@@ -156,7 +290,7 @@ export default function Estadisticas({ proyectos, modoOscuro, setModoOscuro, onV
           </ResponsiveContainer>
         </div>
         {/* Gráfica 3: Ingresos por hora */}
-        <div style={{ background: cardBg, borderRadius: 18, boxShadow: '0 8px 32px 0 rgba(58,41,255,0.10)', padding: 24, marginBottom: 32 }}>
+        <div id="grafica-ingresos-hora" style={{ background: cardBg, borderRadius: 18, boxShadow: '0 8px 32px 0 rgba(58,41,255,0.10)', padding: 24, marginBottom: 32 }}>
           <h2 style={{ fontWeight: 700, fontSize: 20, marginBottom: 12, color: textColor }}>Ingresos por hora</h2>
           <ResponsiveContainer width="100%" height={260}>
             <LineChart data={datos} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
@@ -171,7 +305,29 @@ export default function Estadisticas({ proyectos, modoOscuro, setModoOscuro, onV
             </LineChart>
           </ResponsiveContainer>
         </div>
+        {/* Estadísticas de clientes (solo admin) */}
+        {esAdmin && rankingClientes.length > 0 && (
+          <div style={{ background: cardBg, borderRadius: 14, boxShadow: '0 4px 18px 0 rgba(58,41,255,0.10)', padding: 18, marginBottom: 32 }}>
+            <div style={{ fontWeight: 700, fontSize: 17, marginBottom: 10, color: textColor }}>Ranking de clientes (por ingresos)</div>
+            <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
+              {rankingClientes.map((c, i) => (
+                <li key={c.cliente} style={{ marginBottom: 8, color: textColor }}>
+                  <span style={{ fontWeight: 600 }}>{i + 1}. {c.cliente}</span> — <span style={{ color: subTextColor }}>Proyectos: {c.proyectos}</span> <span style={{ color: '#27ae60', fontWeight: 700 }}>Ingresos: €{c.ingresos.toLocaleString('es-ES')}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+        {/* Botón exportar PDF */}
+        <div style={{ textAlign: 'center', margin: '32px 0 0 0' }}>
+          <button className="uiverse-btn" style={{ fontSize: 18, padding: '14px 38px', background: 'linear-gradient(90deg, #3A8BFF 0%, #A259FF 100%)', color: '#fff', fontWeight: 700, borderRadius: 12, border: 'none', boxShadow: '0 4px 18px 0 rgba(58,41,255,0.10)', cursor: exportando ? 'not-allowed' : 'pointer', opacity: exportando ? 0.6 : 1 }} onClick={exportarPDF} disabled={exportando}>
+            {exportando ? 'Generando PDF...' : '📄 Exportar PDF de este periodo'}
+          </button>
+          {mensajeExport && <div style={{ marginTop: 14, color: '#3A29FF', fontWeight: 600, fontSize: 16 }}>{mensajeExport}</div>}
+          {exportando && <div style={{ marginTop: 10 }}><span className="spinner" style={{ display: 'inline-block', width: 28, height: 28, border: '4px solid #A259FF', borderTop: '4px solid #fff', borderRadius: '50%', animation: 'spin 1s linear infinite' }}></span></div>}
+        </div>
+        <style>{`@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }`}</style>
       </div>
     </div>
   );
-} 
+}

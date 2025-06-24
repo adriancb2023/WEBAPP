@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import BotonModo from './BotonModo';
 import type { Proyecto } from './Home';
+import { FaWhatsapp, FaPhone } from 'react-icons/fa';
 
 interface DetalleProyectoProps {
   proyecto: Proyecto;
@@ -19,6 +20,11 @@ export default function DetalleProyecto({ proyecto, modoOscuro, setModoOscuro, o
   const facturas = editado.facturas;
   const hayFacturas = facturas.length > 0;
 
+  // Obtener teléfono del cliente (si está en el proyecto o buscar en clientes)
+  // Suponemos que el proyecto tiene un campo cliente y puedes buscar el teléfono en una lista de clientes si lo necesitas
+  // Para demo, puedes poner un teléfono de ejemplo
+  const telefonoCliente = '600123456'; // TODO: obtener real si tienes la info
+
   useEffect(() => {
     setCambios(JSON.stringify(editado) !== JSON.stringify(proyecto) || precioHora !== (proyecto.precioHora || 0));
   }, [editado, proyecto, precioHora]);
@@ -32,8 +38,30 @@ export default function DetalleProyecto({ proyecto, modoOscuro, setModoOscuro, o
   // Total calculado
   const totalHorasPrecio = editado.horas * precioHora;
 
+  // Subir factura/archivo
+  const handleAddFactura = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files || !e.target.files[0]) return;
+    const file = e.target.files[0];
+    const reader = new FileReader();
+    reader.onload = ev => {
+      const url = ev.target?.result as string;
+      const tipo: 'pdf' | 'img' = file.type === 'application/pdf' ? 'pdf' : 'img';
+      const nuevaFactura = { nombre: file.name, fecha: new Date().toISOString().slice(0, 10), tipo, url };
+      setEditado(ed => ({ ...ed, facturas: [...ed.facturas, nuevaFactura] }));
+    };
+    reader.readAsDataURL(file);
+  };
+
+  // Eliminar factura/archivo
+  const handleEliminarFactura = (idx: number) => {
+    if (window.confirm('¿Seguro que quieres eliminar este archivo?')) {
+      setEditado(ed => ({ ...ed, facturas: ed.facturas.filter((_, i) => i !== idx) }));
+      setFacturaVer(null);
+    }
+  };
+
   return (
-    <div style={{ minHeight: '100vh', width: '100vw', background: bgColor, color: textColor, padding: 0, position: 'relative' }}>
+    <div style={{ minHeight: '100vh', width: '100vw', background: bgColor, color: textColor, fontFamily: 'inherit', transition: 'background 0.3s, color 0.3s', position: 'relative' }}>
       <style>{`
         .detalle-main { max-width: 1100px; margin: 0 auto; padding: 24px 8px 64px 8px; }
         .detalle-card { background: ${cardBg}; border-radius: 16px; box-shadow: 0 4px 24px 0 rgba(58,41,255,0.08); padding: 24px; margin-bottom: 18px; }
@@ -107,24 +135,21 @@ export default function DetalleProyecto({ proyecto, modoOscuro, setModoOscuro, o
         {/* Facturas (lista con modal) */}
         <div className="detalle-card">
           <div className="detalle-label" style={{ marginBottom: 8, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <span>Facturas ({facturas.length})</span>
+            <span>Facturas / Archivos ({facturas.length})</span>
             <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', background: modoOscuro ? '#23272f' : '#f3f6fa', border: `1.5px solid ${modoOscuro ? '#A259FF' : '#3A8BFF'}`, borderRadius: 8, padding: '6px 14px', fontWeight: 600, color: modoOscuro ? '#A259FF' : '#3A29FF', fontSize: 15 }}>
-              <span style={{ fontSize: 18 }}>+ Añadir factura</span>
-              <input type="file" accept="image/*,application/pdf" capture="environment" style={{ display: 'none' }} onChange={e => {
-                if (!e.target.files || !e.target.files[0]) return;
-                // Aquí puedes gestionar la subida o previsualización
-                alert('Funcionalidad de subida de factura aún no implementada.');
-              }} />
+              <span style={{ fontSize: 18 }}>+ Añadir archivo</span>
+              <input type="file" accept="image/*,application/pdf" capture="environment" style={{ display: 'none' }} onChange={handleAddFactura} />
             </label>
           </div>
-          <ul style={{ padding: 0, margin: 0, listStyle: 'none' }}>
-            {facturas.length === 0 && <li style={{ color: subTextColor }}>No hay facturas</li>}
+          <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
+            {facturas.length === 0 && <li style={{ color: subTextColor }}>No hay archivos</li>}
             {facturas.map((f, i) => (
               <li key={i} style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 10, background: modoOscuro ? '#181a20' : '#fafdff', borderRadius: 8, padding: '10px 14px', boxShadow: modoOscuro ? '0 2px 8px 0 rgba(162,89,255,0.10)' : '0 2px 8px 0 rgba(58,41,255,0.08)' }}>
                 <span style={{ fontWeight: 600, color: modoOscuro ? '#fff' : '#222' }}>{f.nombre}</span>
                 <span style={{ color: subTextColor, fontSize: 13 }}>{f.fecha}</span>
                 <span style={{ color: f.tipo === 'pdf' ? '#3A29FF' : '#A259FF', fontSize: 13, fontWeight: 700 }}>{f.tipo === 'pdf' ? 'PDF' : 'IMG'}</span>
-                <button onClick={() => setFacturaVer(i)} style={{ marginLeft: 'auto', background: 'linear-gradient(90deg, #3A8BFF 0%, #A259FF 100%)', color: '#fff', border: 'none', borderRadius: 8, padding: '6px 18px', fontWeight: 700, fontSize: 15, cursor: 'pointer', boxShadow: modoOscuro ? '0 2px 8px 0 rgba(162,89,255,0.10)' : '0 2px 8px 0 rgba(58,41,255,0.08)' }}>Ver</button>
+                <button onClick={() => setFacturaVer(i)} style={{ background: 'linear-gradient(90deg, #3A8BFF 0%, #A259FF 100%)', color: '#fff', border: 'none', borderRadius: 8, padding: '6px 18px', fontWeight: 700, fontSize: 15, cursor: 'pointer', marginLeft: 'auto' }}>Ver</button>
+                <button onClick={() => handleEliminarFactura(i)} style={{ background: '#e74c3c', color: '#fff', border: 'none', borderRadius: 8, padding: '6px 12px', fontWeight: 700, fontSize: 15, cursor: 'pointer' }}>Eliminar</button>
               </li>
             ))}
           </ul>
@@ -135,13 +160,32 @@ export default function DetalleProyecto({ proyecto, modoOscuro, setModoOscuro, o
                 <button onClick={() => setFacturaVer(null)} style={{ position: 'absolute', top: 12, right: 16, background: 'none', border: 'none', fontSize: 22, color: '#3A29FF', cursor: 'pointer', fontWeight: 700 }}>✕</button>
                 <div style={{ marginBottom: 12, fontWeight: 700 }}>{facturas[facturaVer].nombre}</div>
                 {facturas[facturaVer].tipo === 'pdf' ? (
-                  <iframe src={facturas[facturaVer].nombre} title={facturas[facturaVer].nombre} style={{ width: '70vw', height: '70vh', minWidth: 320, minHeight: 320, border: 'none', borderRadius: 8, background: '#f3f6fa' }} />
+                  <iframe src={facturas[facturaVer].url} title={facturas[facturaVer].nombre} style={{ width: '70vw', height: '70vh', minWidth: 320, minHeight: 320, border: 'none', borderRadius: 8, background: '#f3f6fa' }} />
                 ) : (
-                  <img src={facturas[facturaVer].nombre} alt={facturas[facturaVer].nombre} style={{ maxWidth: '70vw', maxHeight: '70vh', borderRadius: 10, background: '#f3f6fa' }} />
+                  <img src={facturas[facturaVer].url} alt={facturas[facturaVer].nombre} style={{ maxWidth: '70vw', maxHeight: '70vh', borderRadius: 10, background: '#f3f6fa' }} />
                 )}
               </div>
             </div>
           )}
+        </div>
+        {/* Acciones rápidas: WhatsApp y llamada */}
+        <div style={{ display: 'flex', gap: 12, marginBottom: 18 }}>
+          <a
+            href={`https://wa.me/${telefonoCliente}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label="Abrir chat de WhatsApp con el cliente"
+            style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: '#25D366', color: '#fff', border: 'none', borderRadius: 8, padding: '8px 16px', fontWeight: 700, fontSize: 16, textDecoration: 'none', boxShadow: '0 2px 8px 0 rgba(37,211,102,0.10)', cursor: 'pointer' }}
+          >
+            <FaWhatsapp aria-hidden="true" style={{ fontSize: 20 }} /> WhatsApp
+          </a>
+          <a
+            href={`tel:${telefonoCliente}`}
+            aria-label="Llamar al cliente"
+            style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: '#3A8BFF', color: '#fff', border: 'none', borderRadius: 8, padding: '8px 16px', fontWeight: 700, fontSize: 16, textDecoration: 'none', boxShadow: '0 2px 8px 0 rgba(58,41,255,0.10)', cursor: 'pointer' }}
+          >
+            <FaPhone aria-hidden="true" style={{ fontSize: 20 }} /> Llamar
+          </a>
         </div>
       </div>
       {cambios && (

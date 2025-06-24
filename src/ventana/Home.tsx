@@ -6,7 +6,7 @@ import Clientes from './Clientes';
 import Estadisticas from './Estadisticas';
 import Calculadora from './Calculadora';
 
-export interface Factura { nombre: string; fecha: string; tipo: 'pdf' | 'img'; }
+export interface Factura { nombre: string; fecha: string; tipo: 'pdf' | 'img'; url: string; }
 export interface Proyecto {
   id: number;
   nombre: string;
@@ -31,8 +31,8 @@ const proyectosDemo: Proyecto[] = [
     fecha: '15/1/2024',
     gastos: 8750,
     facturas: [
-      { nombre: 'Factura_001.pdf', fecha: '2024-02-01', tipo: 'pdf' },
-      { nombre: 'Recibo_materiales.jpg', fecha: '2024-02-01', tipo: 'img' },
+      { nombre: 'Factura_001.pdf', fecha: '2024-02-01', tipo: 'pdf', url: '' },
+      { nombre: 'Recibo_materiales.jpg', fecha: '2024-02-01', tipo: 'img', url: '' },
     ],
     precioHora: 20,
   },
@@ -80,6 +80,11 @@ export default function Home() {
   const [mostrarClientes, setMostrarClientes] = useState(false);
   const [mostrarEstadisticas, setMostrarEstadisticas] = useState(false);
   const [mostrarCalculadora, setMostrarCalculadora] = useState(false);
+  const [busqueda, setBusqueda] = useState('');
+  const [filtroCliente, setFiltroCliente] = useState('');
+  const [filtroEstado, setFiltroEstado] = useState('');
+  const [filtroDesde, setFiltroDesde] = useState('');
+  const [filtroHasta, setFiltroHasta] = useState('');
 
   // Leer preferencia de localStorage al iniciar
   useEffect(() => {
@@ -110,6 +115,22 @@ export default function Home() {
 
   // Detectar si es móvil
   const esMovil = typeof window !== 'undefined' && window.innerWidth <= 900;
+
+  // Obtener lista de clientes únicos para el filtro
+  const clientesUnicos = Array.from(new Set(proyectos.map(p => p.cliente)));
+
+  // Filtrado avanzado de proyectos
+  const proyectosFiltrados = proyectos.filter(p => {
+    const q = busqueda.trim().toLowerCase();
+    const coincideBusqueda = !q || p.nombre.toLowerCase().includes(q) || p.cliente.toLowerCase().includes(q);
+    const coincideCliente = !filtroCliente || p.cliente === filtroCliente;
+    const coincideEstado = !filtroEstado || p.estadoPago === filtroEstado;
+    const fechaParts = p.fecha.split('/');
+    const fechaISO = `${fechaParts[2]}-${fechaParts[1].padStart(2, '0')}-${fechaParts[0].padStart(2, '0')}`;
+    const coincideDesde = !filtroDesde || fechaISO >= filtroDesde;
+    const coincideHasta = !filtroHasta || fechaISO <= filtroHasta;
+    return coincideBusqueda && coincideCliente && coincideEstado && coincideDesde && coincideHasta;
+  });
 
   if (mostrarNuevo) {
     return <NuevoProyecto onBack={() => setMostrarNuevo(false)} onSave={() => setMostrarNuevo(false)} modoOscuro={modoOscuro} setModoOscuro={setModoOscuro} />;
@@ -230,10 +251,35 @@ export default function Home() {
         </div>
       </div>
 
+      {/* Barra de búsqueda y filtros en una card visual */}
+      <div style={{ maxWidth: 900, margin: '0 auto', marginBottom: 24 }}>
+        <div style={{ background: cardBg, borderRadius: 14, boxShadow: '0 4px 18px 0 rgba(58,41,255,0.10)', padding: 18, display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'center', border: `1.5px solid ${cardBorder}` }}>
+          <input
+            type="text"
+            value={busqueda}
+            onChange={e => setBusqueda(e.target.value)}
+            placeholder="Buscar por nombre o cliente..."
+            style={{ flex: 2, minWidth: 180, fontSize: 16, borderRadius: 8, padding: '8px 12px', border: `1.5px solid ${modoOscuro ? '#A259FF' : '#3A8BFF'}`, background: cardBg, color: textColor }}
+          />
+          <select value={filtroCliente} onChange={e => setFiltroCliente(e.target.value)} style={{ flex: 1, minWidth: 120, fontSize: 15, borderRadius: 8, padding: '8px 10px', border: `1.5px solid ${modoOscuro ? '#A259FF' : '#3A8BFF'}`, background: cardBg, color: textColor }}>
+            <option value="">Todos los clientes</option>
+            {clientesUnicos.map(c => <option key={c} value={c}>{c}</option>)}
+          </select>
+          <select value={filtroEstado} onChange={e => setFiltroEstado(e.target.value)} style={{ flex: 1, minWidth: 120, fontSize: 15, borderRadius: 8, padding: '8px 10px', border: `1.5px solid ${modoOscuro ? '#A259FF' : '#3A8BFF'}`, background: cardBg, color: textColor }}>
+            <option value="">Todos los estados</option>
+            <option value="Sin pagar">Sin pagar</option>
+            <option value="50% adelantado">50% adelantado</option>
+            <option value="Pagado">Pagado</option>
+          </select>
+          <input type="date" value={filtroDesde} onChange={e => setFiltroDesde(e.target.value)} style={{ flex: 1, minWidth: 120, fontSize: 15, borderRadius: 8, padding: '8px 10px', border: `1.5px solid ${modoOscuro ? '#A259FF' : '#3A8BFF'}`, background: cardBg, color: textColor }} placeholder="Desde" />
+          <input type="date" value={filtroHasta} onChange={e => setFiltroHasta(e.target.value)} style={{ flex: 1, minWidth: 120, fontSize: 15, borderRadius: 8, padding: '8px 10px', border: `1.5px solid ${modoOscuro ? '#A259FF' : '#3A8BFF'}`, background: cardBg, color: textColor }} placeholder="Hasta" />
+        </div>
+      </div>
+
       {/* Lista de proyectos activos */}
       <div className="home-main" style={{ paddingBottom: 24, width: '100%', boxSizing: 'border-box' }}>
         <div className="proyectos-grid">
-          {proyectos.map(proyecto => (
+          {proyectosFiltrados.map(proyecto => (
             <div key={proyecto.id}
               className={
                 esMovil

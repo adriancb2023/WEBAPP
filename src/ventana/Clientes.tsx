@@ -1,5 +1,6 @@
 import { useState, useMemo, useEffect } from 'react';
 import BotonModo from './BotonModo';
+import { FaWhatsapp, FaPhone } from 'react-icons/fa';
 
 interface Cliente {
   id: number;
@@ -335,6 +336,24 @@ export default function Clientes({ onVolver }: { onVolver?: () => void } = {}) {
                   <ul style={{ margin: '6px 0 0 18px', padding: 0 }}>
                     {seleccionado.proyectos.map((p, i) => <li key={i}>{p}</li>)}
                   </ul>
+                </div>
+                <div style={{ marginBottom: 18, display: 'flex', gap: 12 }}>
+                  <a
+                    href={`https://wa.me/${seleccionado.telefono}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    aria-label="Abrir chat de WhatsApp con el cliente"
+                    style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: '#25D366', color: '#fff', border: 'none', borderRadius: 8, padding: '8px 16px', fontWeight: 700, fontSize: 16, textDecoration: 'none', boxShadow: '0 2px 8px 0 rgba(37,211,102,0.10)', cursor: 'pointer' }}
+                  >
+                    <FaWhatsapp aria-hidden="true" style={{ fontSize: 20 }} /> WhatsApp
+                  </a>
+                  <a
+                    href={`tel:${seleccionado.telefono}`}
+                    aria-label="Llamar al cliente"
+                    style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: '#3A8BFF', color: '#fff', border: 'none', borderRadius: 8, padding: '8px 16px', fontWeight: 700, fontSize: 16, textDecoration: 'none', boxShadow: '0 2px 8px 0 rgba(58,41,255,0.10)', cursor: 'pointer' }}
+                  >
+                    <FaPhone aria-hidden="true" style={{ fontSize: 20 }} /> Llamar
+                  </a>
                 </div>
                 <div style={{ display: 'flex', gap: 10, marginTop: 18 }}>
                   <button className="uiverse-btn" style={{ background: '#7c3aed' }} onClick={() => setEditandoInline(true)}>Editar</button>
