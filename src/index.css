@@ -71,3 +71,126 @@ button:focus-visible {
     background-color: #f9f9f9;
   }
 }
+
+.uiverse-btn {
+  position: relative;
+  padding: 12px 32px;
+  background: #5227ff;
+  color: #fff;
+  border: none;
+  border-radius: 12px;
+  font-size: 1.1rem;
+  font-weight: 700;
+  cursor: pointer;
+  overflow: hidden;
+  transition: background 0.2s, box-shadow 0.2s;
+  box-shadow: 0 4px 24px 0 rgba(82, 39, 255, 0.15);
+  z-index: 1;
+}
+.uiverse-btn::before {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 0;
+  height: 0;
+  background: linear-gradient(90deg, #ff94b4 0%, #5227ff 100%);
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  transition: width 0.4s cubic-bezier(0.4,0,0.2,1), height 0.4s cubic-bezier(0.4,0,0.2,1);
+  z-index: -1;
+}
+.uiverse-btn:hover::before {
+  width: 300%;
+  height: 300%;
+}
+.uiverse-btn:hover {
+  color: #fff;
+  background: #7c3aed;
+}
+
+.proyectos-grid {
+  position: relative;
+}
+
+.proyecto-card {
+  transition: 
+    filter 0.3s cubic-bezier(.4,0,.2,1), 
+    box-shadow 0.3s cubic-bezier(.4,0,.2,1), 
+    transform 0.2s cubic-bezier(.4,0,.2,1),
+    z-index 0.3s;
+  z-index: 1;
+}
+
+.proyecto-card.resaltada {
+  filter: none !important;
+  box-shadow: 0 8px 32px 0 rgba(82,39,255,0.18), 0 2px 8px 0 rgba(0,0,0,0.10);
+  transform: scale(1.04);
+  z-index: 2;
+}
+
+.proyecto-card.borrosa {
+  filter: blur(2.5px) grayscale(0.3) brightness(0.85);
+  pointer-events: none;
+  opacity: 0.7;
+  z-index: 0;
+}
+
+@media (max-width: 900px) {
+  .home-main, .detalle-main, .nuevo-form-card, .proyectos-grid, .card-clientes, .card-detalle-cliente {
+    max-width: 100vw !important;
+    min-width: 0 !important;
+    padding: 0 4vw !important;
+  }
+  .proyectos-grid {
+    grid-template-columns: 1fr !important;
+    gap: 14px !important;
+  }
+  .home-header {
+    flex-direction: column !important;
+    gap: 10px !important;
+    padding: 10px 0 8px 0 !important;
+  }
+  .uiverse-btn, button, input, select, textarea {
+    font-size: 1.1em !important;
+    min-height: 44px !important;
+    min-width: 44px !important;
+  }
+}
+
+@media (max-width: 600px) {
+  .home-main, .detalle-main, .nuevo-form-card, .card-clientes, .card-detalle-cliente {
+    padding: 0 2vw !important;
+    min-width: 0 !important;
+    max-width: 100vw !important;
+  }
+  .proyectos-grid {
+    grid-template-columns: 1fr !important;
+    gap: 10px !important;
+  }
+  .home-header {
+    flex-direction: column !important;
+    gap: 8px !important;
+    padding: 8px 0 6px 0 !important;
+  }
+  .uiverse-btn, button, input, select, textarea {
+    font-size: 1.1em !important;
+    min-height: 44px !important;
+    min-width: 44px !important;
+    border-radius: 12px !important;
+  }
+  .btn-texto-responsive {
+    display: none !important;
+  }
+  .uiverse-btn[aria-label], .uiverse-btn[title] {
+    justify-content: center !important;
+    padding-left: 0.7em !important;
+    padding-right: 0.7em !important;
+  }
+  .card-clientes, .card-detalle-cliente {
+    min-width: 0 !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+    margin: 0 auto 18px auto !important;
+  }
+}

@@ -22,7 +22,7 @@ export default function NuevoProyecto({ onBack, onSave, modoOscuro, setModoOscur
   const [tocado, setTocado] = useState<{[k:string]: boolean}>({});
 
   // Colores según modo
-  const bgColor = modoOscuro ? '#181a1b' : 'linear-gradient(135deg, #f3f6fa 0%, #eaf1fb 100%)';
+  const bgColor = modoOscuro ? '#111' : 'linear-gradient(135deg, rgb(243, 246, 250) 0%, #213547 100%)';
   const cardBg = modoOscuro ? '#23272f' : '#fafdff';
   const cardBorder = modoOscuro ? '#23272f' : '#e0e8f7';
   const textColor = modoOscuro ? '#f7f8fa' : '#1a2233';

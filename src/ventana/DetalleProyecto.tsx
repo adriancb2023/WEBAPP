@@ -24,7 +24,7 @@ export default function DetalleProyecto({ proyecto, modoOscuro, setModoOscuro, o
   }, [editado, proyecto, precioHora]);
 
   // Colores según modo
-  const bgColor = modoOscuro ? '#181a1b' : '#f3f6fa';
+  const bgColor = modoOscuro ? '#111' : 'linear-gradient(135deg, rgb(243, 246, 250) 0%, #213547 100%)';
   const cardBg = modoOscuro ? '#23272f' : '#fff';
   const textColor = modoOscuro ? '#f7f8fa' : '#1a2233';
   const subTextColor = modoOscuro ? '#b0b8c1' : '#6b7a90';
