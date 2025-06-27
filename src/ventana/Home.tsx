@@ -5,6 +5,7 @@ import DetalleProyecto from './DetalleProyecto';
 import Clientes from './Clientes';
 import Estadisticas from './Estadisticas';
 import Calculadora from './Calculadora';
+import { supabase } from '../supabaseClient'
 
 export interface Factura { nombre: string; fecha: string; tipo: 'pdf' | 'img'; url: string; }
 export interface Proyecto {
@@ -20,48 +21,6 @@ export interface Proyecto {
   precioHora: number;
 }
 
-const proyectosDemo: Proyecto[] = [
-  {
-    id: 1,
-    nombre: 'Reforma Oficina Central',
-    cliente: 'Empresa ABC',
-    presupuesto: 25000,
-    horas: 45,
-    estadoPago: 'Sin pagar',
-    fecha: '15/1/2024',
-    gastos: 8750,
-    facturas: [
-      { nombre: 'Factura_001.pdf', fecha: '2024-02-01', tipo: 'pdf', url: '' },
-      { nombre: 'Recibo_materiales.jpg', fecha: '2024-02-01', tipo: 'img', url: '' },
-    ],
-    precioHora: 20,
-  },
-  {
-    id: 2,
-    nombre: 'Construcción Almacén',
-    cliente: 'Logística XYZ',
-    presupuesto: 85000,
-    horas: 120,
-    estadoPago: '50% adelantado',
-    fecha: '1/2/2024',
-    gastos: 0,
-    facturas: [],
-    precioHora: 25,
-  },
-  {
-    id: 3,
-    nombre: 'Instalación Cocina Industrial',
-    cliente: 'Restaurante Gourmet',
-    presupuesto: 35000,
-    horas: 32,
-    estadoPago: 'Pagado',
-    fecha: '15/2/2024',
-    gastos: 0,
-    facturas: [],
-    precioHora: 30,
-  },
-];
-
 const estadoColor = {
   'Sin pagar': { bg: '#ffeaea', color: '#e74c3c' },
   '50% adelantado': { bg: '#fff9db', color: '#e6b800' },
@@ -69,7 +28,7 @@ const estadoColor = {
 };
 
 export default function Home() {
-  const [proyectos, setProyectos] = useState<Proyecto[]>(proyectosDemo);
+  const [proyectos, setProyectos] = useState<Proyecto[]>([]);
   const [modoOscuro, setModoOscuro] = useState(() => {
     const guardado = localStorage.getItem('modoOscuro');
     return guardado ? guardado === 'true' : false;
@@ -132,8 +91,31 @@ export default function Home() {
     return coincideBusqueda && coincideCliente && coincideEstado && coincideDesde && coincideHasta;
   });
 
+  // Cargar proyectos desde Supabase al montar
+  useEffect(() => {
+    const fetchProyectos = async () => {
+      const { data, error } = await supabase.from('proyectos').select('*');
+      if (!error && data) setProyectos(data);
+    };
+    fetchProyectos();
+  }, []);
+
+  // Guardar proyecto nuevo
+  const handleNuevoProyecto = async (proyecto: any) => {
+    const { data, error } = await supabase.from('proyectos').insert([{ ...proyecto }]).select();
+    if (!error && data) setProyectos(ps => [...ps, data[0]]);
+    setMostrarNuevo(false);
+  };
+
+  // Guardar edición de proyecto
+  const handleGuardarProyecto = async (p: Proyecto) => {
+    const { data, error } = await supabase.from('proyectos').update({ ...p }).eq('id', p.id).select();
+    if (!error && data) setProyectos(ps => ps.map(proj => proj.id === p.id ? data[0] : proj));
+    setDetalle(null);
+  };
+
   if (mostrarNuevo) {
-    return <NuevoProyecto onBack={() => setMostrarNuevo(false)} onSave={() => setMostrarNuevo(false)} modoOscuro={modoOscuro} setModoOscuro={setModoOscuro} />;
+    return <NuevoProyecto onBack={() => setMostrarNuevo(false)} onSave={handleNuevoProyecto} modoOscuro={modoOscuro} setModoOscuro={setModoOscuro} />;
   }
 
   if (detalle) {
@@ -142,10 +124,7 @@ export default function Home() {
       modoOscuro={modoOscuro}
       setModoOscuro={setModoOscuro}
       onBack={() => setDetalle(null)}
-      onSave={p => {
-        setProyectos(ps => ps.map(proj => proj.id === p.id ? p : proj));
-        setDetalle(null);
-      }}
+      onSave={handleGuardarProyecto}
     />;
   }
 

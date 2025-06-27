@@ -68,9 +68,6 @@ export default function Estadisticas({ proyectos, modoOscuro, setModoOscuro, onV
   const textColor = modoOscuro ? '#f7f8fa' : '#1a2233';
   const subTextColor = modoOscuro ? '#b0b8c1' : '#6b7a90';
 
-  // Simulación de rol admin (en el futuro se conectará con la gestión de usuarios)
-  const esAdmin = true; // Cambia a false para probar como usuario normal
-
   // Calcular datos para el dashboard
   const totalProyectos = proyectosMes.length;
   const totalIngresos = proyectosMes.reduce((acc, p) => acc + p.presupuesto, 0);
@@ -87,22 +84,6 @@ export default function Estadisticas({ proyectos, modoOscuro, setModoOscuro, onV
     const [db, mb, yb] = b.fecha.split('/');
     return new Date(Number(ya), Number(ma) - 1, Number(da)).getTime() - new Date(Number(yb), Number(mb) - 1, Number(db)).getTime();
   }).slice(0, 3);
-  // Número de clientes únicos (solo para admin)
-  const totalClientes = esAdmin ? new Set(proyectosMes.map(p => p.cliente)).size : null;
-
-  // Estadísticas de clientes (solo admin)
-  let rankingClientes: {cliente: string, ingresos: number, proyectos: number}[] = [];
-  if (esAdmin) {
-    const mapa = new Map<string, {ingresos: number, proyectos: number}>();
-    proyectosMes.forEach(p => {
-      if (!mapa.has(p.cliente)) mapa.set(p.cliente, { ingresos: 0, proyectos: 0 });
-      const v = mapa.get(p.cliente)!;
-      v.ingresos += p.presupuesto;
-      v.proyectos += 1;
-    });
-    rankingClientes = Array.from(mapa.entries()).map(([cliente, v]) => ({ cliente, ...v }))
-      .sort((a, b) => b.ingresos - a.ingresos);
-  }
 
   // Estado para feedback de exportación
   const [exportando, setExportando] = useState(false);
@@ -126,9 +107,8 @@ export default function Estadisticas({ proyectos, modoOscuro, setModoOscuro, onV
       doc.text(`Ingresos: €${totalIngresos.toLocaleString('es-ES')}`, 14, 44);
       doc.text(`Gastos: €${totalGastos.toLocaleString('es-ES')}`, 14, 52);
       doc.text(`Beneficio: €${totalBeneficio.toLocaleString('es-ES')}`, 14, 60);
-      if (esAdmin) doc.text(`Clientes únicos: ${totalClientes}`, 14, 68);
       // Próximos vencimientos
-      let y = esAdmin ? 76 : 68;
+      let y = 68;
       if (vencimientos.length > 0) {
         doc.setFontSize(11);
         doc.setTextColor(80);
@@ -137,22 +117,6 @@ export default function Estadisticas({ proyectos, modoOscuro, setModoOscuro, onV
           doc.text(`- ${p.nombre} (${p.cliente}) ${p.fecha}`, 18, y + 8 + i * 8);
         });
         y += 8 * (vencimientos.length + 1);
-      }
-      // Ranking de clientes (solo admin)
-      if (esAdmin && rankingClientes.length > 0) {
-        doc.setFontSize(13);
-        doc.setTextColor(30);
-        doc.text('Ranking de clientes (por ingresos):', 14, y + 10);
-        autoTable(doc, {
-          startY: y + 14,
-          head: [['Cliente', 'Ingresos', 'Proyectos']],
-          body: rankingClientes.map(c => [c.cliente, `€${c.ingresos.toLocaleString('es-ES')}`, c.proyectos]),
-          theme: 'striped',
-          headStyles: { fillColor: [58, 41, 255] },
-          styles: { fontSize: 10 },
-          margin: { left: 14, right: 14 }
-        });
-        y = (doc as any).lastAutoTable.finalY || y + 30;
       }
       // Tabla de proyectos
       doc.setFontSize(13);
@@ -240,12 +204,6 @@ export default function Estadisticas({ proyectos, modoOscuro, setModoOscuro, onV
             <div style={{ fontSize: 15, color: subTextColor, marginBottom: 4 }}>Beneficio estimado</div>
             <div style={{ fontWeight: 800, fontSize: 28, color: '#A259FF' }}>€{totalBeneficio.toLocaleString('es-ES')}</div>
           </div>
-          {esAdmin && (
-            <div style={{ flex: 1, minWidth: 180, background: cardBg, borderRadius: 14, boxShadow: '0 4px 18px 0 rgba(58,41,255,0.10)', padding: 18, textAlign: 'center' }}>
-              <div style={{ fontSize: 15, color: subTextColor, marginBottom: 4 }}>Clientes únicos</div>
-              <div style={{ fontWeight: 800, fontSize: 28, color: '#3A8BFF' }}>{totalClientes}</div>
-            </div>
-          )}
         </div>
         {/* Próximos vencimientos */}
         {vencimientos.length > 0 && (
@@ -305,19 +263,6 @@ export default function Estadisticas({ proyectos, modoOscuro, setModoOscuro, onV
             </LineChart>
           </ResponsiveContainer>
         </div>
-        {/* Estadísticas de clientes (solo admin) */}
-        {esAdmin && rankingClientes.length > 0 && (
-          <div style={{ background: cardBg, borderRadius: 14, boxShadow: '0 4px 18px 0 rgba(58,41,255,0.10)', padding: 18, marginBottom: 32 }}>
-            <div style={{ fontWeight: 700, fontSize: 17, marginBottom: 10, color: textColor }}>Ranking de clientes (por ingresos)</div>
-            <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
-              {rankingClientes.map((c, i) => (
-                <li key={c.cliente} style={{ marginBottom: 8, color: textColor }}>
-                  <span style={{ fontWeight: 600 }}>{i + 1}. {c.cliente}</span> — <span style={{ color: subTextColor }}>Proyectos: {c.proyectos}</span> <span style={{ color: '#27ae60', fontWeight: 700 }}>Ingresos: €{c.ingresos.toLocaleString('es-ES')}</span>
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
         {/* Botón exportar PDF */}
         <div style={{ textAlign: 'center', margin: '32px 0 0 0' }}>
           <button className="uiverse-btn" style={{ fontSize: 18, padding: '14px 38px', background: 'linear-gradient(90deg, #3A8BFF 0%, #A259FF 100%)', color: '#fff', fontWeight: 700, borderRadius: 12, border: 'none', boxShadow: '0 4px 18px 0 rgba(58,41,255,0.10)', cursor: exportando ? 'not-allowed' : 'pointer', opacity: exportando ? 0.6 : 1 }} onClick={exportarPDF} disabled={exportando}>

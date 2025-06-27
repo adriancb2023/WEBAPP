@@ -1,12 +1,8 @@
 import { useState } from 'react'
-import { createClient } from '@supabase/supabase-js'
+import { supabase } from '../supabaseClient'
 import Aurora from '../componentes/Aurora'
 import '../App.css'
 import React from 'react'
-
-const supabaseUrl = 'https://qarctnyssctoosibzqik.supabase.co'
-const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFhcmN0bnlzc2N0b29zaWJ6cWlrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTA0MjgyNjAsImV4cCI6MjA2NjAwNDI2MH0.8ypxqQY8ONP2hJzYyeaN7L9GK07DGfSekqAU_4ARkOw'
-const supabase = createClient(supabaseUrl, supabaseAnonKey)
 
 interface LoginProps {
   onLogin?: () => void;
@@ -43,12 +39,31 @@ function Login({ onLogin }: LoginProps) {
       localStorage.removeItem('recordarEmail')
       localStorage.removeItem('recordarSesion')
     }
-    const { error } = await supabase.auth.signInWithPassword({ email, password })
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password })
     if (error) {
       setMessage('Error: ' + error.message)
-    } else {
-      setMessage('¡Login exitoso!')
+      setLoading(false)
+      return
+    }
+    // Obtener el rol del usuario tras login
+    const { user } = data
+    if (user) {
+      // Buscar el rol en la tabla users (por email)
+      const { data: userData, error: userError } = await supabase
+        .from('users')
+        .select('role_id')
+        .eq('email', user.email)
+        .single()
+      if (userError || !userData) {
+        setMessage('No se pudo obtener el rol del usuario.')
+        setLoading(false)
+        return
+      }
+      // Puedes guardar el rol en el estado global/contexto si lo necesitas
+      setMessage('¡Login exitoso! Rol: ' + userData.role_id)
       if (onLogin) onLogin()
+    } else {
+      setMessage('No se pudo obtener el usuario.')
     }
     setLoading(false)
   }
@@ -111,12 +126,28 @@ function Login({ onLogin }: LoginProps) {
           onClick={async () => {
             setLoading(true);
             setMessage('');
-            const { error } = await supabase.auth.signInWithPassword({ email: 'root@root.com', password: 'root' });
+            const { data, error } = await supabase.auth.signInWithPassword({ email: 'root@root.com', password: 'root' });
             if (error) {
               setMessage('Error: ' + error.message);
-            } else {
-              setMessage('¡Login rápido exitoso!');
+              setLoading(false);
+              return;
+            }
+            const { user } = data;
+            if (user) {
+              const { data: userData, error: userError } = await supabase
+                .from('users')
+                .select('role_id')
+                .eq('email', user.email)
+                .single();
+              if (userError || !userData) {
+                setMessage('No se pudo obtener el rol del usuario.');
+                setLoading(false);
+                return;
+              }
+              setMessage('¡Login rápido exitoso! Rol: ' + userData.role_id);
               if (onLogin) onLogin();
+            } else {
+              setMessage('No se pudo obtener el usuario.');
             }
             setLoading(false);
           }}

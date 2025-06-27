@@ -1,15 +1,6 @@
 import { useState } from 'react';
 import BotonModo from './BotonModo';
-
-// Lista simulada de materiales locales
-const materialesDemo = [
-  { id: 1, nombre: 'Cemento', precio: 8.5, unidad: 'saco' },
-  { id: 2, nombre: 'Ladrillo', precio: 0.45, unidad: 'unidad' },
-  { id: 3, nombre: 'Azulejo', precio: 12, unidad: 'm²' },
-  { id: 4, nombre: 'Pintura', precio: 18, unidad: 'lata' },
-  { id: 5, nombre: 'Yeso', precio: 7, unidad: 'saco' },
-  { id: 6, nombre: 'Madera', precio: 25, unidad: 'm' },
-];
+import { supabase } from '../supabaseClient';
 
 export default function Calculadora({ modoOscuro, setModoOscuro, onVolver }: {
   modoOscuro: boolean;
@@ -26,13 +17,24 @@ export default function Calculadora({ modoOscuro, setModoOscuro, onVolver }: {
   const textColor = modoOscuro ? '#f7f8fa' : '#1a2233';
   const subTextColor = modoOscuro ? '#b0b8c1' : '#6b7a90';
 
-  const buscarMateriales = () => {
+  const buscarMateriales = async () => {
     setLoading(true);
-    setTimeout(() => {
-      const res = materialesDemo.filter(m => m.nombre.toLowerCase().includes(busqueda.toLowerCase()));
-      setMateriales(res);
-      setLoading(false);
-    }, 400);
+    const { data, error } = await supabase
+      .from('productos')
+      .select('*')
+      .ilike('nombre_del_producto', `%${busqueda}%`);
+    if (!error && data) {
+      setMateriales(data.map(m => ({
+        id: m.id,
+        nombre: m.nombre_del_producto,
+        precio: Number(m.precio_unitario) || 0,
+        cantidad: Number(m.cantidad) || 1,
+        unidad: m.unidad
+      })));
+    } else {
+      setMateriales([]);
+    }
+    setLoading(false);
   };
 
   const agregarMaterial = (mat: any) => {
@@ -40,10 +42,15 @@ export default function Calculadora({ modoOscuro, setModoOscuro, onVolver }: {
       const idx = cs.findIndex(c => c.nombre === mat.nombre);
       if (idx >= 0) {
         const nuevo = [...cs];
-        nuevo[idx].cantidad += 1;
+        nuevo[idx].cantidad += mat.cantidad || 1;
         return nuevo;
       }
-      return [...cs, { nombre: mat.nombre, precio: mat.precio, cantidad: 1, unidad: mat.unidad }];
+      return [...cs, {
+        nombre: mat.nombre,
+        precio: Number(mat.precio) || 0,
+        cantidad: mat.cantidad || 1,
+        unidad: mat.unidad
+      }];
     });
   };
 
