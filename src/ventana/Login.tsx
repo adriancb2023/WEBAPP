@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { createClient } from '@supabase/supabase-js'
 import Aurora from '../componentes/Aurora'
 import '../App.css'
+import React from 'react'
 
 const supabaseUrl = 'https://qarctnyssctoosibzqik.supabase.co'
 const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFhcmN0bnlzc2N0b29zaWJ6cWlrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTA0MjgyNjAsImV4cCI6MjA2NjAwNDI2MH0.8ypxqQY8ONP2hJzYyeaN7L9GK07DGfSekqAU_4ARkOw'
@@ -12,11 +13,22 @@ interface LoginProps {
 }
 
 function Login({ onLogin }: LoginProps) {
-  const [email, setEmail] = useState('')
+  const [email, setEmail] = useState(() => localStorage.getItem('recordarEmail') || '')
   const [password, setPassword] = useState('')
   const [message, setMessage] = useState('')
   const [loading, setLoading] = useState(false)
   const [modoOscuro, setModoOscuro] = useState(false)
+  const [recordar, setRecordar] = useState(() => localStorage.getItem('recordarSesion') === 'true')
+
+  // Si hay email guardado y recordarSesion, intentar login automático
+  React.useEffect(() => {
+    if (email && recordar) {
+      // Solo intentamos si hay email y recordar está activo
+      // No intentamos si no hay password
+      // El usuario debe escribir la contraseña para mayor seguridad
+      // Si quieres guardar la contraseña (no recomendado), aquí se podría hacer
+    }
+  }, [])
 
   const bgColor = modoOscuro ? '#111' : 'linear-gradient(135deg, rgb(243, 246, 250) 0%, #213547 100%)'
 
@@ -24,6 +36,13 @@ function Login({ onLogin }: LoginProps) {
     e.preventDefault()
     setLoading(true)
     setMessage('')
+    if (recordar) {
+      localStorage.setItem('recordarEmail', email)
+      localStorage.setItem('recordarSesion', 'true')
+    } else {
+      localStorage.removeItem('recordarEmail')
+      localStorage.removeItem('recordarSesion')
+    }
     const { error } = await supabase.auth.signInWithPassword({ email, password })
     if (error) {
       setMessage('Error: ' + error.message)
@@ -75,8 +94,47 @@ function Login({ onLogin }: LoginProps) {
           required
           style={{ padding: 16, borderRadius: 12, border: 'none', fontSize: 17, background: 'rgba(255,255,255,0.12)', color: '#fff', outline: 'none', fontWeight: 500, boxShadow: '0 1px 4px 0 rgba(0,0,0,0.10)', marginTop: 8, width: '100%', boxSizing: 'border-box' }}
         />
+        <label style={{ color: '#fff', fontSize: 15, display: 'flex', alignItems: 'center', gap: 8 }}>
+          <input
+            type="checkbox"
+            checked={recordar}
+            onChange={e => setRecordar(e.target.checked)}
+            style={{ accentColor: '#3A29FF', width: 18, height: 18 }}
+          />
+          Recordar sesión
+        </label>
         <button type="submit" disabled={loading} style={{ padding: 16, borderRadius: 12, fontWeight: 'bold', fontSize: 18, background: 'linear-gradient(90deg, #3A29FF 0%, #FF94B4 100%)', color: '#fff', border: 'none', cursor: 'pointer', boxShadow: '0 2px 8px 0 rgba(58,41,255,0.15)', transition: 'background 0.2s', marginTop: 8, width: '100%' }}>
           {loading ? 'Entrando...' : 'Entrar'}
+        </button>
+        <button
+          type="button"
+          onClick={async () => {
+            setLoading(true);
+            setMessage('');
+            const { error } = await supabase.auth.signInWithPassword({ email: 'root@root.com', password: 'root' });
+            if (error) {
+              setMessage('Error: ' + error.message);
+            } else {
+              setMessage('¡Login rápido exitoso!');
+              if (onLogin) onLogin();
+            }
+            setLoading(false);
+          }}
+          style={{
+            marginTop: 18,
+            padding: 14,
+            borderRadius: 12,
+            fontWeight: 'bold',
+            fontSize: 16,
+            background: 'linear-gradient(90deg, #FF3232 0%, #FF94B4 100%)',
+            color: '#fff',
+            border: 'none',
+            cursor: 'pointer',
+            boxShadow: '0 2px 8px 0 rgba(255,50,50,0.15)',
+            width: '100%'
+          }}
+        >
+          Inicio rápido (root)
         </button>
         {message && <div style={{ color: '#fff', textAlign: 'center', fontWeight: 500 }}>{message}</div>}
       </form>
