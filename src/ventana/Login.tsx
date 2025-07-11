@@ -1,7 +1,7 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { createClient } from '@supabase/supabase-js'
 import Aurora from '../componentes/Aurora'
-import '../App.css'
+import { useResponsive } from '../hooks/useResponsive'
 import React from 'react'
 
 const supabaseUrl = 'https://qarctnyssctoosibzqik.supabase.co'
@@ -13,29 +13,19 @@ interface LoginProps {
 }
 
 function Login({ onLogin }: LoginProps) {
+  const { isMobile } = useResponsive();
   const [email, setEmail] = useState(() => localStorage.getItem('recordarEmail') || '')
   const [password, setPassword] = useState('')
   const [message, setMessage] = useState('')
   const [loading, setLoading] = useState(false)
-  const [modoOscuro, setModoOscuro] = useState(false)
   const [recordar, setRecordar] = useState(() => localStorage.getItem('recordarSesion') === 'true')
-
-  // Si hay email guardado y recordarSesion, intentar login automático
-  React.useEffect(() => {
-    if (email && recordar) {
-      // Solo intentamos si hay email y recordar está activo
-      // No intentamos si no hay password
-      // El usuario debe escribir la contraseña para mayor seguridad
-      // Si quieres guardar la contraseña (no recomendado), aquí se podría hacer
-    }
-  }, [])
-
-  const bgColor = modoOscuro ? '#111' : 'linear-gradient(135deg, rgb(243, 246, 250) 0%, #213547 100%)'
+  const [showPassword, setShowPassword] = useState(false)
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
     setMessage('')
+    
     if (recordar) {
       localStorage.setItem('recordarEmail', email)
       localStorage.setItem('recordarSesion', 'true')
@@ -43,6 +33,7 @@ function Login({ onLogin }: LoginProps) {
       localStorage.removeItem('recordarEmail')
       localStorage.removeItem('recordarSesion')
     }
+    
     const { error } = await supabase.auth.signInWithPassword({ email, password })
     if (error) {
       setMessage('Error: ' + error.message)
@@ -53,90 +44,263 @@ function Login({ onLogin }: LoginProps) {
     setLoading(false)
   }
 
+  const handleQuickLogin = async () => {
+    setLoading(true);
+    setMessage('');
+    const { error } = await supabase.auth.signInWithPassword({ 
+      email: 'root@root.com', 
+      password: 'root' 
+    });
+    if (error) {
+      setMessage('Error: ' + error.message);
+    } else {
+      setMessage('¡Login rápido exitoso!');
+      if (onLogin) onLogin();
+    }
+    setLoading(false);
+  };
+
   return (
-    <div style={{ minHeight: '100vh', width: '100vw', display: 'flex', alignItems: 'center', justifyContent: 'center', background: bgColor, position: 'relative', zIndex: 1 }}>
+    <div style={{ 
+      minHeight: '100vh', 
+      width: '100vw', 
+      display: 'flex', 
+      alignItems: 'center', 
+      justifyContent: 'center',
+      background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+      position: 'relative',
+      padding: isMobile ? 'var(--spacing-md)' : 'var(--spacing-xl)',
+    }}>
       <Aurora colorStops={["#3A29FF", "#FF94B4", "#FF3232"]} blend={0.5} amplitude={1.0} speed={0.5} />
+      
       <form
         onSubmit={handleLogin}
         style={{
-          background: 'rgba(20, 20, 40, 0.55)',
-          boxShadow: '0 8px 32px 0 rgba(31, 38, 135, 0.37)',
-          borderRadius: 24,
-          border: '1.5px solid rgba(255,255,255,0.18)',
-          backdropFilter: 'blur(18px)',
-          WebkitBackdropFilter: 'blur(18px)',
-          padding: 24,
-          display: 'flex',
-          flexDirection: 'column',
-          gap: 18,
-          minWidth: 0,
-          maxWidth: 98 * 1 + 'vw',
+          background: 'rgba(255, 255, 255, 0.95)',
+          backdropFilter: 'blur(20px)',
+          WebkitBackdropFilter: 'blur(20px)',
+          borderRadius: 'var(--border-radius-large)',
+          border: '1px solid rgba(255,255,255,0.2)',
+          boxShadow: '0 20px 40px rgba(0,0,0,0.1)',
+          padding: isMobile ? 'var(--spacing-lg)' : 'var(--spacing-xl)',
           width: '100%',
+          maxWidth: '400px',
           position: 'relative',
           zIndex: 2,
-          boxSizing: 'border-box',
         }}
       >
-        <h2 style={{ color: '#fff', textAlign: 'center', fontWeight: 700, letterSpacing: 1, fontSize: 22, margin: 0 }}>Iniciar sesión</h2>
-        <input
-          type="email"
-          placeholder="Correo electrónico"
-          value={email}
-          onChange={e => setEmail(e.target.value)}
-          required
-          style={{ padding: 16, borderRadius: 12, border: 'none', fontSize: 17, background: 'rgba(255,255,255,0.12)', color: '#fff', outline: 'none', fontWeight: 500, boxShadow: '0 1px 4px 0 rgba(0,0,0,0.10)', marginTop: 8, width: '100%', boxSizing: 'border-box' }}
-        />
-        <input
-          type="password"
-          placeholder="Contraseña"
-          value={password}
-          onChange={e => setPassword(e.target.value)}
-          required
-          style={{ padding: 16, borderRadius: 12, border: 'none', fontSize: 17, background: 'rgba(255,255,255,0.12)', color: '#fff', outline: 'none', fontWeight: 500, boxShadow: '0 1px 4px 0 rgba(0,0,0,0.10)', marginTop: 8, width: '100%', boxSizing: 'border-box' }}
-        />
-        <label style={{ color: '#fff', fontSize: 15, display: 'flex', alignItems: 'center', gap: 8 }}>
-          <input
-            type="checkbox"
-            checked={recordar}
-            onChange={e => setRecordar(e.target.checked)}
-            style={{ accentColor: '#3A29FF', width: 18, height: 18 }}
-          />
-          Recordar sesión
-        </label>
-        <button type="submit" disabled={loading} style={{ padding: 16, borderRadius: 12, fontWeight: 'bold', fontSize: 18, background: 'linear-gradient(90deg, #3A29FF 0%, #FF94B4 100%)', color: '#fff', border: 'none', cursor: 'pointer', boxShadow: '0 2px 8px 0 rgba(58,41,255,0.15)', transition: 'background 0.2s', marginTop: 8, width: '100%' }}>
-          {loading ? 'Entrando...' : 'Entrar'}
-        </button>
-        <button
-          type="button"
-          onClick={async () => {
-            setLoading(true);
-            setMessage('');
-            const { error } = await supabase.auth.signInWithPassword({ email: 'root@root.com', password: 'root' });
-            if (error) {
-              setMessage('Error: ' + error.message);
-            } else {
-              setMessage('¡Login rápido exitoso!');
-              if (onLogin) onLogin();
-            }
-            setLoading(false);
-          }}
-          style={{
-            marginTop: 18,
-            padding: 14,
-            borderRadius: 12,
-            fontWeight: 'bold',
-            fontSize: 16,
-            background: 'linear-gradient(90deg, #FF3232 0%, #FF94B4 100%)',
-            color: '#fff',
-            border: 'none',
+        <div style={{ textAlign: 'center', marginBottom: 'var(--spacing-lg)' }}>
+          <div style={{ 
+            fontSize: '48px', 
+            marginBottom: 'var(--spacing-sm)',
+            background: 'linear-gradient(135deg, var(--primary-color), var(--accent-color))',
+            WebkitBackgroundClip: 'text',
+            WebkitTextFillColor: 'transparent',
+          }}>
+            📋
+          </div>
+          <h1 style={{ 
+            fontSize: isMobile ? '24px' : '28px',
+            fontWeight: '700',
+            color: 'var(--text-primary)',
+            margin: 0,
+            marginBottom: 'var(--spacing-xs)',
+          }}>
+            Bienvenido
+          </h1>
+          <p style={{ 
+            color: 'var(--text-secondary)', 
+            fontSize: '16px',
+            margin: 0,
+          }}>
+            Gestiona tus proyectos de forma inteligente
+          </p>
+        </div>
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-md)' }}>
+          <div>
+            <label style={{ 
+              display: 'block', 
+              marginBottom: 'var(--spacing-xs)',
+              fontSize: '14px',
+              fontWeight: '600',
+              color: 'var(--text-primary)',
+            }}>
+              Correo electrónico
+            </label>
+            <input
+              type="email"
+              placeholder="tu@email.com"
+              value={email}
+              onChange={e => setEmail(e.target.value)}
+              required
+              style={{
+                width: '100%',
+                padding: 'var(--spacing-md)',
+                borderRadius: 'var(--border-radius)',
+                border: '2px solid var(--border-color)',
+                fontSize: '16px',
+                background: 'var(--bg-primary)',
+                color: 'var(--text-primary)',
+                transition: 'border-color 0.2s ease',
+              }}
+              onFocus={(e) => e.target.style.borderColor = 'var(--primary-color)'}
+              onBlur={(e) => e.target.style.borderColor = 'var(--border-color)'}
+            />
+          </div>
+
+          <div>
+            <label style={{ 
+              display: 'block', 
+              marginBottom: 'var(--spacing-xs)',
+              fontSize: '14px',
+              fontWeight: '600',
+              color: 'var(--text-primary)',
+            }}>
+              Contraseña
+            </label>
+            <div style={{ position: 'relative' }}>
+              <input
+                type={showPassword ? 'text' : 'password'}
+                placeholder="Tu contraseña"
+                value={password}
+                onChange={e => setPassword(e.target.value)}
+                required
+                style={{
+                  width: '100%',
+                  padding: 'var(--spacing-md)',
+                  paddingRight: '50px',
+                  borderRadius: 'var(--border-radius)',
+                  border: '2px solid var(--border-color)',
+                  fontSize: '16px',
+                  background: 'var(--bg-primary)',
+                  color: 'var(--text-primary)',
+                  transition: 'border-color 0.2s ease',
+                }}
+                onFocus={(e) => e.target.style.borderColor = 'var(--primary-color)'}
+                onBlur={(e) => e.target.style.borderColor = 'var(--border-color)'}
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                style={{
+                  position: 'absolute',
+                  right: '12px',
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  background: 'none',
+                  border: 'none',
+                  fontSize: '18px',
+                  cursor: 'pointer',
+                  color: 'var(--text-secondary)',
+                }}
+              >
+                {showPassword ? '🙈' : '👁️'}
+              </button>
+            </div>
+          </div>
+
+          <label style={{ 
+            display: 'flex', 
+            alignItems: 'center', 
+            gap: 'var(--spacing-sm)',
+            fontSize: '14px',
+            color: 'var(--text-primary)',
             cursor: 'pointer',
-            boxShadow: '0 2px 8px 0 rgba(255,50,50,0.15)',
-            width: '100%'
-          }}
-        >
-          Inicio rápido (root)
-        </button>
-        {message && <div style={{ color: '#fff', textAlign: 'center', fontWeight: 500 }}>{message}</div>}
+          }}>
+            <input
+              type="checkbox"
+              checked={recordar}
+              onChange={e => setRecordar(e.target.checked)}
+              style={{ 
+                accentColor: 'var(--primary-color)',
+                width: '18px', 
+                height: '18px',
+                cursor: 'pointer',
+              }}
+            />
+            Recordar sesión
+          </label>
+
+          <button 
+            type="submit" 
+            disabled={loading}
+            className="btn-primary"
+            style={{
+              width: '100%',
+              padding: 'var(--spacing-md)',
+              fontSize: '16px',
+              fontWeight: '600',
+              opacity: loading ? 0.7 : 1,
+              cursor: loading ? 'not-allowed' : 'pointer',
+            }}
+          >
+            {loading ? (
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 'var(--spacing-sm)' }}>
+                <div className="spinner" style={{ width: '16px', height: '16px' }}></div>
+                Entrando...
+              </div>
+            ) : (
+              'Iniciar sesión'
+            )}
+          </button>
+
+          <div style={{ 
+            textAlign: 'center', 
+            margin: 'var(--spacing-md) 0',
+            color: 'var(--text-secondary)',
+            fontSize: '14px',
+          }}>
+            o
+          </div>
+
+          <button
+            type="button"
+            onClick={handleQuickLogin}
+            disabled={loading}
+            style={{
+              width: '100%',
+              padding: 'var(--spacing-md)',
+              borderRadius: 'var(--border-radius)',
+              border: '2px solid var(--primary-color)',
+              background: 'transparent',
+              color: 'var(--primary-color)',
+              fontSize: '16px',
+              fontWeight: '600',
+              cursor: loading ? 'not-allowed' : 'pointer',
+              transition: 'all 0.2s ease',
+              opacity: loading ? 0.7 : 1,
+            }}
+            onMouseEnter={(e) => {
+              if (!loading) {
+                e.currentTarget.style.background = 'var(--primary-color)';
+                e.currentTarget.style.color = 'white';
+              }
+            }}
+            onMouseLeave={(e) => {
+              if (!loading) {
+                e.currentTarget.style.background = 'transparent';
+                e.currentTarget.style.color = 'var(--primary-color)';
+              }
+            }}
+          >
+            🚀 Acceso rápido (Demo)
+          </button>
+
+          {message && (
+            <div style={{ 
+              padding: 'var(--spacing-sm)',
+              borderRadius: 'var(--border-radius)',
+              background: message.includes('Error') ? 'var(--error-color)' : 'var(--success-color)',
+              color: 'white',
+              textAlign: 'center',
+              fontSize: '14px',
+              fontWeight: '500',
+            }}>
+              {message}
+            </div>
+          )}
+        </div>
       </form>
     </div>
   )
