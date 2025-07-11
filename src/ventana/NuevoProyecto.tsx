@@ -3,9 +3,22 @@ import BotonModo from './BotonModo';
 
 interface NuevoProyectoProps {
   onBack: () => void;
-  onSave: (proyecto: any) => void;
+  onSave: (proyecto: Omit<Proyecto, 'id' | 'horas' | 'gastos' | 'facturas' | 'precioHora'>) => void;
   modoOscuro: boolean;
   setModoOscuro: (v: boolean) => void;
+}
+
+interface Proyecto {
+  id: number;
+  nombre: string;
+  cliente: string;
+  presupuesto: number;
+  horas: number;
+  estadoPago: 'Pagado' | 'Sin pagar' | '50% adelantado';
+  fecha: string;
+  gastos: number;
+  facturas: any[];
+  precioHora: number;
 }
 
 const estadosPago = [

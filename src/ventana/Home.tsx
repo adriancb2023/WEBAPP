@@ -10,6 +10,7 @@ import DetalleProyecto from './DetalleProyecto';
 import Clientes from './Clientes';
 import Estadisticas from './Estadisticas';
 import Calculadora from './Calculadora';
+import Aurora from '../componentes/Aurora';
 
 export interface Factura { nombre: string; fecha: string; tipo: 'pdf' | 'img'; url: string; }
 export interface Proyecto {
@@ -104,6 +105,7 @@ export default function Home() {
     presupuesto: proyectos.reduce((acc, p) => acc + p.presupuesto, 0),
     sinPagar: proyectos.filter(p => p.estadoPago === 'Sin pagar').length,
     pagados: proyectos.filter(p => p.estadoPago === 'Pagado').length,
+    beneficio: proyectos.reduce((acc, p) => acc + (p.presupuesto - p.gastos), 0),
   }), [proyectos]);
 
   // Navegación móvil
@@ -113,6 +115,7 @@ export default function Home() {
       label: 'Proyectos',
       icon: '📋',
       onClick: () => setVistaActual('home'),
+      badge: stats.sinPagar,
     },
     {
       id: 'clientes',
@@ -146,15 +149,31 @@ export default function Home() {
     setDetalle(null);
   };
 
+  const handleNuevoProyecto = (nuevoProyecto: Omit<Proyecto, 'id' | 'horas' | 'gastos' | 'facturas' | 'precioHora'>) => {
+    const proyecto: Proyecto = {
+      ...nuevoProyecto,
+      id: Date.now(),
+      horas: 0,
+      gastos: 0,
+      facturas: [],
+      precioHora: 20,
+      fecha: new Date().toLocaleDateString('es-ES'),
+    };
+    setProyectos(ps => [...ps, proyecto]);
+    setVistaActual('home');
+  };
+
   const handleProyectoDelete = (id: number) => {
-    setProyectos(ps => ps.filter(p => p.id !== id));
+    if (window.confirm('¿Estás seguro de que quieres eliminar este proyecto?')) {
+      setProyectos(ps => ps.filter(p => p.id !== id));
+    }
   };
 
   // Renderizado condicional de vistas
   if (vistaActual === 'nuevo') {
     return <NuevoProyecto 
       onBack={() => setVistaActual('home')} 
-      onSave={() => setVistaActual('home')} 
+      onSave={handleNuevoProyecto} 
       modoOscuro={modoOscuro} 
       setModoOscuro={setModoOscuro} 
     />;
@@ -194,18 +213,29 @@ export default function Home() {
   return (
     <div style={{ 
       minHeight: '100vh', 
-      background: 'var(--bg-secondary)',
+      background: modoOscuro ? 'var(--bg-secondary)' : 'var(--gradient-bg)',
       paddingBottom: isMobile ? '80px' : '0',
+      position: 'relative',
     }}>
+      {/* Aurora de fondo sutil */}
+      <div style={{ position: 'fixed', top: 0, left: 0, right: 0, height: '30vh', zIndex: 0, opacity: 0.3 }}>
+        <Aurora 
+          colorStops={modoOscuro ? ["#5227FF", "#A259FF", "#3A8BFF"] : ["#f8fafc", "#e2e8f0", "#cbd5e1"]} 
+          blend={0.3} 
+          amplitude={0.5} 
+          speed={0.3} 
+        />
+      </div>
+
       {/* Header */}
       <Header
-        title="Proyectos"
-        subtitle={`${stats.total} activos`}
+        title="Mis Proyectos"
+        subtitle={`${stats.total} activos • €${stats.presupuesto.toLocaleString()} total`}
         rightActions={[
           {
             icon: '🔍',
             onClick: () => setMostrarFiltros(!mostrarFiltros),
-            label: 'Buscar',
+            label: 'Buscar y filtrar',
           },
           {
             icon: '+',
@@ -215,80 +245,130 @@ export default function Home() {
         ]}
       />
 
-      {/* Filtros expandibles */}
+      {/* Filtros expandibles mejorados */}
       {mostrarFiltros && (
-        <div style={{
-          background: 'var(--bg-primary)',
+        <div className="glass fade-in-up" style={{
           borderBottom: '1px solid var(--border-color)',
-          padding: 'var(--spacing-md)',
+          padding: 'var(--spacing-lg)',
+          margin: '0 var(--spacing-md)',
+          borderRadius: 'var(--radius-xl)',
+          marginBottom: 'var(--spacing-md)',
         }}>
           <div style={{ 
             display: 'flex', 
-            gap: 'var(--spacing-sm)', 
+            gap: 'var(--spacing-md)', 
             flexDirection: isMobile ? 'column' : 'row',
           }}>
-            <input
-              type="text"
-              placeholder="Buscar proyectos..."
-              value={busqueda}
-              onChange={(e) => setBusqueda(e.target.value)}
-              style={{ flex: 1 }}
-            />
-            <select
-              value={filtroEstado}
-              onChange={(e) => setFiltroEstado(e.target.value)}
-              style={{ minWidth: isMobile ? 'auto' : '150px' }}
-            >
-              <option value="">Todos los estados</option>
-              <option value="Sin pagar">Sin pagar</option>
-              <option value="50% adelantado">50% adelantado</option>
-              <option value="Pagado">Pagado</option>
-            </select>
+            <div style={{ flex: 1 }}>
+              <label style={{ 
+                display: 'block', 
+                marginBottom: 'var(--spacing-xs)',
+                fontSize: '14px',
+                fontWeight: '600',
+                color: 'var(--text-secondary)',
+              }}>
+                Buscar proyectos
+              </label>
+              <input
+                type="text"
+                placeholder="Nombre del proyecto o cliente..."
+                value={busqueda}
+                onChange={(e) => setBusqueda(e.target.value)}
+                style={{ width: '100%' }}
+              />
+            </div>
+            <div style={{ minWidth: isMobile ? 'auto' : '200px' }}>
+              <label style={{ 
+                display: 'block', 
+                marginBottom: 'var(--spacing-xs)',
+                fontSize: '14px',
+                fontWeight: '600',
+                color: 'var(--text-secondary)',
+              }}>
+                Estado de pago
+              </label>
+              <select
+                value={filtroEstado}
+                onChange={(e) => setFiltroEstado(e.target.value)}
+                style={{ width: '100%' }}
+              >
+                <option value="">Todos los estados</option>
+                <option value="Sin pagar">Sin pagar</option>
+                <option value="50% adelantado">50% adelantado</option>
+                <option value="Pagado">Pagado</option>
+              </select>
+            </div>
           </div>
         </div>
       )}
 
-      {/* Estadísticas rápidas */}
+      {/* Estadísticas rápidas mejoradas */}
       <div style={{ 
         padding: 'var(--spacing-md)',
         display: 'grid',
         gridTemplateColumns: isMobile ? '1fr 1fr' : 'repeat(4, 1fr)',
-        gap: 'var(--spacing-sm)',
+        gap: 'var(--spacing-md)',
+        position: 'relative',
+        zIndex: 1,
       }}>
-        <div className="card" style={{ textAlign: 'center', padding: 'var(--spacing-md)' }}>
-          <div style={{ fontSize: '24px', fontWeight: 'bold', color: 'var(--primary-color)' }}>
+        <div className="card fade-in-up" style={{ 
+          textAlign: 'center', 
+          padding: 'var(--spacing-lg)',
+          background: 'var(--gradient-primary)',
+          color: 'white',
+          border: 'none',
+        }}>
+          <div style={{ fontSize: isMobile ? '24px' : '32px', fontWeight: 'bold', marginBottom: 'var(--spacing-xs)' }}>
             {stats.total}
           </div>
-          <div style={{ fontSize: '14px', color: 'var(--text-secondary)' }}>
-            Total
+          <div style={{ fontSize: '14px', opacity: 0.9 }}>
+            Proyectos Activos
           </div>
         </div>
         
-        <div className="card" style={{ textAlign: 'center', padding: 'var(--spacing-md)' }}>
-          <div style={{ fontSize: '20px', fontWeight: 'bold', color: 'var(--success-color)' }}>
+        <div className="card fade-in-up" style={{ 
+          textAlign: 'center', 
+          padding: 'var(--spacing-lg)',
+          background: 'var(--gradient-success)',
+          color: 'white',
+          border: 'none',
+        }}>
+          <div style={{ fontSize: isMobile ? '18px' : '24px', fontWeight: 'bold', marginBottom: 'var(--spacing-xs)' }}>
             €{stats.presupuesto.toLocaleString()}
           </div>
-          <div style={{ fontSize: '14px', color: 'var(--text-secondary)' }}>
-            Valor
+          <div style={{ fontSize: '14px', opacity: 0.9 }}>
+            Valor Total
           </div>
         </div>
 
         {!isMobile && (
           <>
-            <div className="card" style={{ textAlign: 'center', padding: 'var(--spacing-md)' }}>
-              <div style={{ fontSize: '24px', fontWeight: 'bold', color: 'var(--error-color)' }}>
+            <div className="card fade-in-up" style={{ 
+              textAlign: 'center', 
+              padding: 'var(--spacing-lg)',
+              background: stats.sinPagar > 0 ? 'var(--error-color)' : 'var(--bg-primary)',
+              color: stats.sinPagar > 0 ? 'white' : 'var(--text-primary)',
+              border: stats.sinPagar > 0 ? 'none' : '1px solid var(--border-color)',
+            }}>
+              <div style={{ fontSize: '32px', fontWeight: 'bold', marginBottom: 'var(--spacing-xs)' }}>
                 {stats.sinPagar}
               </div>
-              <div style={{ fontSize: '14px', color: 'var(--text-secondary)' }}>
-                Sin pagar
+              <div style={{ fontSize: '14px', opacity: 0.9 }}>
+                Sin Pagar
               </div>
             </div>
             
-            <div className="card" style={{ textAlign: 'center', padding: 'var(--spacing-md)' }}>
-              <div style={{ fontSize: '24px', fontWeight: 'bold', color: 'var(--success-color)' }}>
+            <div className="card fade-in-up" style={{ 
+              textAlign: 'center', 
+              padding: 'var(--spacing-lg)',
+              background: 'var(--gradient-success)',
+              color: 'white',
+              border: 'none',
+            }}>
+              <div style={{ fontSize: '32px', fontWeight: 'bold', marginBottom: 'var(--spacing-xs)' }}>
                 {stats.pagados}
               </div>
-              <div style={{ fontSize: '14px', color: 'var(--text-secondary)' }}>
+              <div style={{ fontSize: '14px', opacity: 0.9 }}>
                 Pagados
               </div>
             </div>
@@ -296,11 +376,36 @@ export default function Home() {
         )}
       </div>
 
-      {/* Lista de proyectos */}
-      <div style={{ padding: '0 var(--spacing-md) var(--spacing-md)' }}>
-        {isMobile ? (
+      {/* Lista de proyectos mejorada */}
+      <div style={{ padding: '0 var(--spacing-md) var(--spacing-md)', position: 'relative', zIndex: 1 }}>
+        {proyectosFiltrados.length === 0 ? (
+          <div className="card" style={{ 
+            textAlign: 'center', 
+            padding: 'var(--spacing-2xl)',
+            background: 'var(--bg-overlay)',
+          }}>
+            <div style={{ fontSize: '48px', marginBottom: 'var(--spacing-md)' }}>📋</div>
+            <h3 style={{ marginBottom: 'var(--spacing-sm)', color: 'var(--text-primary)' }}>
+              {busqueda || filtroEstado ? 'No se encontraron proyectos' : 'No hay proyectos aún'}
+            </h3>
+            <p style={{ color: 'var(--text-secondary)', marginBottom: 'var(--spacing-lg)' }}>
+              {busqueda || filtroEstado 
+                ? 'Intenta cambiar los filtros de búsqueda' 
+                : 'Crea tu primer proyecto para comenzar'
+              }
+            </p>
+            {!busqueda && !filtroEstado && (
+              <button 
+                className="btn-primary"
+                onClick={() => setVistaActual('nuevo')}
+              >
+                ✨ Crear Primer Proyecto
+              </button>
+            )}
+          </div>
+        ) : isMobile ? (
           <SwipeableList>
-            {proyectosFiltrados.map(proyecto => (
+            {proyectosFiltrados.map((proyecto, index) => (
               <SwipeableListItem
                 key={proyecto.id}
                 rightActions={[
@@ -313,7 +418,11 @@ export default function Home() {
                   },
                 ]}
               >
-                <TouchableCard onClick={() => handleProyectoClick(proyecto)}>
+                <TouchableCard 
+                  onClick={() => handleProyectoClick(proyecto)}
+                  style={{ animationDelay: `${index * 0.1}s` }}
+                  className="fade-in-up"
+                >
                   <ProyectoCard proyecto={proyecto} isMobile={isMobile} />
                 </TouchableCard>
               </SwipeableListItem>
@@ -321,10 +430,12 @@ export default function Home() {
           </SwipeableList>
         ) : (
           <div className="grid">
-            {proyectosFiltrados.map(proyecto => (
+            {proyectosFiltrados.map((proyecto, index) => (
               <TouchableCard 
                 key={proyecto.id}
                 onClick={() => handleProyectoClick(proyecto)}
+                style={{ animationDelay: `${index * 0.1}s` }}
+                className="fade-in-up"
               >
                 <ProyectoCard proyecto={proyecto} isMobile={isMobile} />
               </TouchableCard>
@@ -345,90 +456,174 @@ export default function Home() {
   );
 }
 
-// Componente de tarjeta de proyecto optimizado
+// Componente de tarjeta de proyecto mejorado
 function ProyectoCard({ proyecto, isMobile }: { proyecto: Proyecto; isMobile: boolean }) {
-  const getEstadoColor = (estado: string) => {
+  const getEstadoStyle = (estado: string) => {
     switch (estado) {
-      case 'Pagado': return { bg: 'var(--success-color)', color: 'white' };
-      case 'Sin pagar': return { bg: 'var(--error-color)', color: 'white' };
-      case '50% adelantado': return { bg: 'var(--warning-color)', color: 'white' };
-      default: return { bg: 'var(--border-color)', color: 'var(--text-primary)' };
+      case 'Pagado': 
+        return { 
+          bg: 'var(--gradient-success)', 
+          color: 'white',
+          icon: '✅'
+        };
+      case 'Sin pagar': 
+        return { 
+          bg: 'var(--error-color)', 
+          color: 'white',
+          icon: '⏳'
+        };
+      case '50% adelantado': 
+        return { 
+          bg: 'var(--warning-color)', 
+          color: 'white',
+          icon: '⚡'
+        };
+      default: 
+        return { 
+          bg: 'var(--border-color)', 
+          color: 'var(--text-primary)',
+          icon: '📋'
+        };
     }
   };
 
-  const estadoStyle = getEstadoColor(proyecto.estadoPago);
+  const estadoStyle = getEstadoStyle(proyecto.estadoPago);
+  const beneficio = proyecto.presupuesto - proyecto.gastos;
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-sm)' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-        <div style={{ flex: 1 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-md)' }}>
+      {/* Header del proyecto */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 'var(--spacing-md)' }}>
+        <div style={{ flex: 1, minWidth: 0 }}>
           <h3 style={{ 
             margin: 0, 
-            fontSize: isMobile ? '16px' : '18px',
+            fontSize: isMobile ? '18px' : '20px',
             fontWeight: '700',
             color: 'var(--text-primary)',
             lineHeight: 1.3,
+            marginBottom: 'var(--spacing-xs)',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
           }}>
             {proyecto.nombre}
           </h3>
-          <p style={{ 
-            margin: '4px 0 0 0', 
-            fontSize: '14px', 
-            color: 'var(--text-secondary)' 
-          }}>
-            {proyecto.cliente}
-          </p>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-xs)' }}>
+            <span style={{ fontSize: '16px' }}>👤</span>
+            <p style={{ 
+              margin: 0, 
+              fontSize: '15px', 
+              color: 'var(--text-secondary)',
+              fontWeight: '500',
+            }}>
+              {proyecto.cliente}
+            </p>
+          </div>
         </div>
         
-        <span
+        <div
           style={{
             background: estadoStyle.bg,
             color: estadoStyle.color,
-            padding: '4px 8px',
-            borderRadius: '6px',
+            padding: 'var(--spacing-xs) var(--spacing-sm)',
+            borderRadius: 'var(--radius-full)',
             fontSize: '12px',
-            fontWeight: '600',
+            fontWeight: '700',
             whiteSpace: 'nowrap',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 'var(--spacing-xs)',
+            boxShadow: 'var(--shadow-sm)',
           }}
         >
-          {proyecto.estadoPago}
-        </span>
+          <span>{estadoStyle.icon}</span>
+          {!isMobile && proyecto.estadoPago}
+        </div>
       </div>
 
+      {/* Métricas del proyecto */}
       <div style={{ 
         display: 'grid', 
-        gridTemplateColumns: isMobile ? '1fr 1fr' : '1fr 1fr 1fr',
-        gap: 'var(--spacing-md)',
-        marginTop: 'var(--spacing-sm)',
+        gridTemplateColumns: isMobile ? '1fr 1fr' : '1fr 1fr 1fr 1fr',
+        gap: 'var(--spacing-lg)',
+        padding: 'var(--spacing-md)',
+        background: 'var(--bg-tertiary)',
+        borderRadius: 'var(--radius-lg)',
       }}>
-        <div>
-          <div style={{ fontSize: '18px', fontWeight: 'bold', color: 'var(--success-color)' }}>
+        <div style={{ textAlign: 'center' }}>
+          <div style={{ 
+            fontSize: isMobile ? '20px' : '24px', 
+            fontWeight: 'bold', 
+            color: 'var(--primary-color)',
+            marginBottom: 'var(--spacing-xs)',
+          }}>
             €{proyecto.presupuesto.toLocaleString()}
           </div>
-          <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
-            Presupuesto
+          <div style={{ fontSize: '12px', color: 'var(--text-secondary)', fontWeight: '600' }}>
+            PRESUPUESTO
           </div>
         </div>
         
-        <div>
-          <div style={{ fontSize: '18px', fontWeight: 'bold', color: 'var(--primary-color)' }}>
+        <div style={{ textAlign: 'center' }}>
+          <div style={{ 
+            fontSize: isMobile ? '20px' : '24px', 
+            fontWeight: 'bold', 
+            color: 'var(--secondary-color)',
+            marginBottom: 'var(--spacing-xs)',
+          }}>
             {proyecto.horas}h
           </div>
-          <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
-            Horas
+          <div style={{ fontSize: '12px', color: 'var(--text-secondary)', fontWeight: '600' }}>
+            HORAS
           </div>
         </div>
 
         {!isMobile && (
-          <div>
-            <div style={{ fontSize: '14px', color: 'var(--text-secondary)' }}>
-              {proyecto.fecha}
+          <>
+            <div style={{ textAlign: 'center' }}>
+              <div style={{ 
+                fontSize: '20px', 
+                fontWeight: 'bold', 
+                color: beneficio >= 0 ? 'var(--success-color)' : 'var(--error-color)',
+                marginBottom: 'var(--spacing-xs)',
+              }}>
+                €{beneficio.toLocaleString()}
+              </div>
+              <div style={{ fontSize: '12px', color: 'var(--text-secondary)', fontWeight: '600' }}>
+                BENEFICIO
+              </div>
             </div>
-            <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
-              Fecha
+            
+            <div style={{ textAlign: 'center' }}>
+              <div style={{ 
+                fontSize: '16px', 
+                color: 'var(--text-secondary)',
+                marginBottom: 'var(--spacing-xs)',
+              }}>
+                📅 {proyecto.fecha}
+              </div>
+              <div style={{ fontSize: '12px', color: 'var(--text-secondary)', fontWeight: '600' }}>
+                FECHA
+              </div>
             </div>
-          </div>
+          </>
         )}
+      </div>
+
+      {/* Barra de progreso visual */}
+      <div style={{ 
+        height: '4px', 
+        background: 'var(--border-light)', 
+        borderRadius: 'var(--radius-full)',
+        overflow: 'hidden',
+      }}>
+        <div style={{
+          height: '100%',
+          width: `${Math.min(100, (proyecto.horas / 100) * 100)}%`,
+          background: 'var(--gradient-primary)',
+          borderRadius: 'var(--radius-full)',
+          transition: 'width 0.3s ease',
+        }} />
       </div>
     </div>
   );
