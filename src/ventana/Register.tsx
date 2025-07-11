@@ -1,59 +1,48 @@
-import { useState } from 'react'
-import { supabase } from '../supabaseClient'
-import '../App.css'
-import React from 'react'
-import Register from './Register'
+import React, { useState } from 'react';
+import '../App.css';
 
-interface LoginProps {
-  onLogin?: () => void;
-}
-
-function Login({ onLogin }: LoginProps) {
-  const [email, setEmail] = useState(() => localStorage.getItem('recordarEmail') || '')
-  const [password, setPassword] = useState('')
-  const [message, setMessage] = useState('')
-  const [loading, setLoading] = useState(false)
+export default function Register({ onRegister }: { onRegister?: () => void }) {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [nombre, setNombre] = useState('');
+  const [message, setMessage] = useState('');
+  const [loading, setLoading] = useState(false);
   const [modoOscuro] = useState(true)
-  const [recordar, setRecordar] = useState(() => localStorage.getItem('recordarSesion') === 'true')
-  const [mostrarRegistro, setMostrarRegistro] = useState(false)
 
-  const bgColor = 'linear-gradient(135deg, #181824 0%, #23243a 100%)'
+  const bgColor = 'linear-gradient(135deg, #181824 0%, #23243a 100%)';
 
-  const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setLoading(true)
-    setMessage('')
-    if (recordar) {
-      localStorage.setItem('recordarEmail', email)
-      localStorage.setItem('recordarSesion', 'true')
-    } else {
-      localStorage.removeItem('recordarEmail')
-      localStorage.removeItem('recordarSesion')
+  const handleRegister = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setMessage('');
+    try {
+      const res = await fetch('http://kybernatech.com/api/auth/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password, nombre })
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setMessage(data.message || 'Error al registrarse');
+        setLoading(false);
+        return;
+      }
+      if (data.token) {
+        localStorage.setItem('token', data.token);
+      }
+      setMessage('¡Registro exitoso!');
+      if (onRegister) onRegister();
+    } catch (err) {
+      setMessage('Error de red o del servidor');
+    } finally {
+      setLoading(false);
     }
-    const { data, error } = await supabase.auth.signInWithPassword({ email, password })
-    if (error) {
-      setMessage('Error: ' + error.message)
-      setLoading(false)
-      return
-    }
-    const { user } = data
-    if (user) {
-      setMessage('¡Login exitoso!')
-      if (onLogin) onLogin()
-    } else {
-      setMessage('No se pudo obtener el usuario.')
-    }
-    setLoading(false)
-  }
-
-  if (mostrarRegistro) {
-    return <Register onRegister={() => setMostrarRegistro(false)} />;
-  }
+  };
 
   return (
     <div style={{ minHeight: '100vh', width: '100vw', display: 'flex', alignItems: 'center', justifyContent: 'center', background: bgColor, position: 'relative', zIndex: 1, fontFamily: 'Inter, system-ui, sans-serif', overflow: 'hidden' }}>
       <style>{`
-        .login-card {
+        .register-card {
           width: 100%;
           max-width: 380px;
           background: rgba(30,32,48,0.92);
@@ -74,7 +63,7 @@ function Login({ onLogin }: LoginProps) {
           100% { opacity: 1; transform: translateY(0) scale(1); }
         }
         @media (max-width: 600px) {
-          .login-card {
+          .register-card {
             max-width: 99vw;
             padding: 18px 2vw 18px 2vw;
             border-radius: 0;
@@ -125,7 +114,7 @@ function Login({ onLogin }: LoginProps) {
           background: #23243a;
           box-shadow: 0 2px 16px 0 rgba(255,148,180,0.13);
         }
-        .login-btn {
+        .register-btn {
           padding: 20px;
           border-radius: 16px;
           font-weight: bold;
@@ -142,11 +131,11 @@ function Login({ onLogin }: LoginProps) {
           position: relative;
           overflow: hidden;
         }
-        .login-btn:active {
+        .register-btn:active {
           transform: scale(0.97);
           box-shadow: 0 1px 6px 0 rgba(58,41,255,0.10);
         }
-        .login-btn::after {
+        .register-btn::after {
           content: '';
           position: absolute;
           left: 50%;
@@ -159,26 +148,11 @@ function Login({ onLogin }: LoginProps) {
           transition: width 0.3s, height 0.3s;
           z-index: 0;
         }
-        .login-btn:active::after {
+        .register-btn:active::after {
           width: 180%;
           height: 400%;
         }
-        .alt-btn {
-          background: none;
-          color: #b6b6d6;
-          border: none;
-          font-size: 16px;
-          text-decoration: underline;
-          cursor: pointer;
-          margin-top: 0;
-          padding: 0;
-          opacity: 0.85;
-          transition: opacity 0.18s;
-        }
-        .alt-btn:hover {
-          opacity: 1;
-        }
-        .login-message {
+        .register-message {
           color: #fff;
           background: linear-gradient(90deg, #FF3232 0%, #FF94B4 100%);
           border-radius: 10px;
@@ -189,22 +163,19 @@ function Login({ onLogin }: LoginProps) {
           box-shadow: 0 2px 8px 0 rgba(255,50,50,0.10);
           margin-top: 8px;
         }
-        .login-checkbox {
-          color: #b6b6d6;
-          font-size: 15px;
-          display: flex;
-          align-items: center;
-          gap: 8px;
-          margin-top: 0;
-          opacity: 0.85;
-        }
-        .login-checkbox input {
-          accent-color: #FF94B4;
-          width: 18px;
-          height: 18px;
-        }
       `}</style>
-      <form className="login-card" onSubmit={handleLogin}>
+      <form className="register-card" onSubmit={handleRegister}>
+        <div className="campo-flotante">
+          <input
+            type="text"
+            placeholder=" "
+            value={nombre}
+            onChange={e => setNombre(e.target.value)}
+            required
+            autoComplete="name"
+          />
+          <label>Nombre</label>
+        </div>
         <div className="campo-flotante">
           <input
             type="email"
@@ -223,32 +194,15 @@ function Login({ onLogin }: LoginProps) {
             value={password}
             onChange={e => setPassword(e.target.value)}
             required
-            autoComplete="current-password"
+            autoComplete="new-password"
           />
           <label>Contraseña</label>
         </div>
-        <label className="login-checkbox">
-          <input
-            type="checkbox"
-            checked={recordar}
-            onChange={e => setRecordar(e.target.checked)}
-          />
-          Recordar sesión
-        </label>
-        <button type="submit" className="login-btn" disabled={loading}>
-          {loading ? 'Entrando...' : 'Entrar'}
+        <button type="submit" className="register-btn" disabled={loading}>
+          {loading ? 'Registrando...' : 'Registrarse'}
         </button>
-        <button
-          type="button"
-          className="alt-btn"
-          onClick={() => setMostrarRegistro(true)}
-        >
-          ¿No tienes cuenta? Regístrate
-        </button>
-        {message && <div className="login-message">{message}</div>}
+        {message && <div className="register-message">{message}</div>}
       </form>
     </div>
-  )
-}
-
-export default Login
+  );
+} 

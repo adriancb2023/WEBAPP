@@ -1,6 +1,7 @@
 import { useState, useMemo, useEffect } from 'react';
 import BotonModo from './BotonModo';
 import { FaWhatsapp, FaPhone } from 'react-icons/fa';
+import { supabase } from '../supabaseClient'
 
 interface Cliente {
   id: number;
@@ -12,29 +13,8 @@ interface Cliente {
   proyectos: string[];
 }
 
-const clientesDemo: Cliente[] = [
-  {
-    id: 1,
-    nombre: 'Juan Pérez',
-    telefono: '600123456',
-    email: 'juan.perez@email.com',
-    direccion: 'Calle Mayor 12, Madrid',
-    notas: 'Cliente habitual. Prefiere contacto por email.',
-    proyectos: ['Reforma Oficina Central', 'Instalación Cocina Industrial'],
-  },
-  {
-    id: 2,
-    nombre: 'María López',
-    telefono: '611987654',
-    email: 'maria.lopez@email.com',
-    direccion: 'Av. Andalucía 45, Sevilla',
-    notas: 'Pendiente de enviar presupuesto.',
-    proyectos: ['Construcción Almacén'],
-  },
-];
-
 export default function Clientes({ onVolver }: { onVolver?: () => void } = {}) {
-  const [clientes, setClientes] = useState<Cliente[]>(clientesDemo);
+  const [clientes, setClientes] = useState<Cliente[]>([]);
   const [seleccionado, setSeleccionado] = useState<Cliente | null>(null);
   const [modal, setModal] = useState<{visible: boolean, editar: boolean}>({visible: false, editar: false});
   const [clienteEdit, setClienteEdit] = useState<Cliente | undefined>(undefined);
@@ -53,6 +33,8 @@ export default function Clientes({ onVolver }: { onVolver?: () => void } = {}) {
   const [formInline, setFormInline] = useState<Omit<Cliente, 'id' | 'proyectos'>>({
     nombre: '', telefono: '', email: '', direccion: '', notas: ''
   });
+
+  const [mostrarNuevoCliente, setMostrarNuevoCliente] = useState(false);
 
   useEffect(() => {
     localStorage.setItem('modoOscuro', modoOscuro.toString());
@@ -97,26 +79,52 @@ export default function Clientes({ onVolver }: { onVolver?: () => void } = {}) {
     setSeleccionado(null);
   }, []);
 
+  // Cargar clientes desde Supabase al montar
+  useEffect(() => {
+    const fetchClientes = async () => {
+      const { data, error } = await supabase.from('clientes').select('*');
+      if (!error && data) setClientes(data);
+    };
+    fetchClientes();
+  }, []);
+
   // Agregar cliente
-  const handleAdd = (nuevo: Omit<Cliente, 'id' | 'proyectos'>) => {
-    setClientes(cs => [
-      ...cs,
-      { ...nuevo, id: Date.now(), proyectos: [] }
-    ]);
+  const handleAdd = async (nuevo: Omit<Cliente, 'id' | 'proyectos'>) => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      alert('No hay usuario autenticado');
+      return;
+    }
+    const { nombre, telefono, email, direccion, notas } = nuevo;
+    const { data, error } = await supabase.from('clientes').insert([
+      { nombre, telefono, email, direccion, notas, id_user: user.id }
+    ]).select();
+    if (!error && data) {
+      const { data: nuevosClientes, error: errorFetch } = await supabase.from('clientes').select('*');
+      if (!errorFetch && nuevosClientes) setClientes(nuevosClientes);
+    } else {
+      alert('Error al guardar el cliente: ' + (error?.message || ''));
+    }
   };
 
   // Editar cliente
-  const handleEdit = (editado: Omit<Cliente, 'id' | 'proyectos'>) => {
+  const handleEdit = async (editado: Omit<Cliente, 'id' | 'proyectos'>) => {
     if (!clienteEdit) return;
-    setClientes(cs => cs.map(c => c.id === clienteEdit.id ? { ...c, ...editado } : c));
-    setSeleccionado(s => s && s.id === clienteEdit.id ? { ...s, ...editado } : s);
+    const { data, error } = await supabase.from('clientes').update({ ...editado }).eq('id', clienteEdit.id).select();
+    if (!error && data) {
+      setClientes(cs => cs.map(c => c.id === clienteEdit.id ? data[0] : c));
+      setSeleccionado(s => s && s.id === clienteEdit.id ? data[0] : s);
+    }
   };
 
   // Eliminar cliente
-  const handleDelete = (id: number) => {
+  const handleDelete = async (id: number) => {
     if (window.confirm('¿Seguro que quieres eliminar este cliente?')) {
-      setClientes(cs => cs.filter(c => c.id !== id));
-      setSeleccionado(s => (s && s.id === id ? null : s));
+      const { error } = await supabase.from('clientes').delete().eq('id', id);
+      if (!error) {
+        setClientes(cs => cs.filter(c => c.id !== id));
+        setSeleccionado(s => (s && s.id === id ? null : s));
+      }
     }
   };
 
@@ -217,6 +225,27 @@ export default function Clientes({ onVolver }: { onVolver?: () => void } = {}) {
     );
   }
 
+  // Renderizar el formulario de nuevo cliente a pantalla completa si mostrarNuevoCliente es true
+  if (mostrarNuevoCliente) {
+    return (
+      <div style={{ minHeight: '100vh', minWidth: '100vw', width: '100vw', height: '100vh', background: bgColor, display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'background 0.3s', overflow: 'hidden' }}>
+        <style>{`
+          .nuevo-form-card { width: 100%; max-width: 440px; background: ${cardBg}; border-radius: 18px; box-shadow: 0 8px 32px 0 rgba(58,41,255,0.10); padding: 28px; display: flex; flex-direction: column; gap: 22px; color: ${textColor}; border: 1.5px solid ${cardBorder}; margin: 0 auto; }
+          .nuevo-form-label { font-weight: 600; color: ${subTextColor}; font-size: 15px; }
+          .nuevo-form-input { width: 100%; margin-top: 6px; padding: 12px; border-radius: 10px; border: 1.5px solid ${cardBorder}; font-size: 16px; background: ${modoOscuro ? '#23272f' : '#f3f6fa'}; outline: none; font-weight: 500; color: ${textColor}; transition: background 0.2s, color 0.2s; }
+          .nuevo-form-input:focus { border: 1.5px solid #3A8BFF; }
+          @media (max-width: 600px) { .nuevo-form-card { padding: 10px; max-width: 98vw; min-width: 0; } }
+        `}</style>
+        <div className="nuevo-form-card">
+          <button onClick={() => setMostrarNuevoCliente(false)} style={{ alignSelf: 'flex-start', background: 'none', border: 'none', color: '#3A29FF', fontWeight: 700, fontSize: 18, cursor: 'pointer', marginBottom: 8 }}>&larr; Volver</button>
+          <h2 style={{ fontWeight: 800, fontSize: 24, margin: 0, color: textColor }}>Nuevo Cliente</h2>
+          <NuevoClienteForm onSave={async (nuevo) => { await handleAdd(nuevo); setMostrarNuevoCliente(false); }} modoOscuro={modoOscuro} cardBorder={cardBorder} textColor={textColor} />
+        </div>
+        <BotonModo modoOscuro={modoOscuro} setModoOscuro={setModoOscuro} />
+      </div>
+    );
+  }
+
   return (
     <div style={{ display: 'flex', flexDirection: esMovil && mostrarDetalleMovil ? 'column' : 'row', minHeight: '100vh', height: '100vh', width: '100vw', background: bgColor, color: textColor, fontFamily: 'inherit', overflow: 'hidden', transition: 'background 0.3s, color 0.3s', position: 'relative' }}>
       <BotonModo modoOscuro={modoOscuro} setModoOscuro={setModoOscuro} />
@@ -234,7 +263,7 @@ export default function Clientes({ onVolver }: { onVolver?: () => void } = {}) {
               <span role="img" aria-label="volver">←</span>
             </button>
             <h2 style={{ margin: 0, fontWeight: 800, fontSize: 22, flex: 1, textAlign: 'left' }}>Clientes</h2>
-            <button className="uiverse-btn" aria-label="Nuevo Cliente" style={{ fontSize: 15, padding: '8px 16px', marginLeft: 8 }} onClick={() => { setModal({ visible: true, editar: false }); setClienteEdit(undefined); setSeleccionado(null); }}>
+            <button className="uiverse-btn" aria-label="Nuevo Cliente" style={{ fontSize: 15, padding: '8px 16px', marginLeft: 8 }} onClick={() => setMostrarNuevoCliente(true)}>
               <span style={{ fontSize: 18, fontWeight: 700 }}>+</span>
               <span className="btn-texto-responsive"> Nuevo</span>
             </button>
@@ -365,5 +394,43 @@ export default function Clientes({ onVolver }: { onVolver?: () => void } = {}) {
         </div>
       )}
     </div>
+  );
+}
+
+// Declarar el componente fuera de Clientes para evitar errores de referencia
+function NuevoClienteForm({ onSave, modoOscuro, cardBorder, textColor }: { onSave: (nuevo: { nombre: string, telefono: string, email: string, direccion: string, notas: string }) => void, modoOscuro: boolean, cardBorder: string, textColor: string }) {
+  const [form, setForm] = useState({ nombre: '', telefono: '', email: '', direccion: '', notas: '' });
+  const [tocado, setTocado] = useState<{[k: string]: boolean}>({});
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    setForm(f => ({ ...f, [e.target.name]: e.target.value }));
+  };
+  const handleSave = () => {
+    setTocado({ nombre: true, telefono: true, email: true, direccion: true });
+    if (!form.nombre.trim() || !form.telefono.trim() || !form.email.trim() || !form.direccion.trim()) return;
+    onSave(form);
+  };
+  return (
+    <>
+      <label className="nuevo-form-label">Nombre
+        <input className="nuevo-form-input" name="nombre" value={form.nombre} onChange={handleChange} onBlur={() => setTocado(t => ({...t, nombre: true}))} />
+        {tocado.nombre && !form.nombre.trim() && <span style={{ color: '#e74c3c', fontSize: 13 }}>Obligatorio</span>}
+      </label>
+      <label className="nuevo-form-label">Teléfono o móvil
+        <input className="nuevo-form-input" name="telefono" value={form.telefono} onChange={handleChange} onBlur={() => setTocado(t => ({...t, telefono: true}))} />
+        {tocado.telefono && !form.telefono.trim() && <span style={{ color: '#e74c3c', fontSize: 13 }}>Obligatorio</span>}
+      </label>
+      <label className="nuevo-form-label">Email
+        <input className="nuevo-form-input" name="email" value={form.email} onChange={handleChange} onBlur={() => setTocado(t => ({...t, email: true}))} />
+        {tocado.email && !form.email.trim() && <span style={{ color: '#e74c3c', fontSize: 13 }}>Obligatorio</span>}
+      </label>
+      <label className="nuevo-form-label">Dirección
+        <input className="nuevo-form-input" name="direccion" value={form.direccion} onChange={handleChange} onBlur={() => setTocado(t => ({...t, direccion: true}))} />
+        {tocado.direccion && !form.direccion.trim() && <span style={{ color: '#e74c3c', fontSize: 13 }}>Obligatorio</span>}
+      </label>
+      <label className="nuevo-form-label">Notas
+        <textarea className="nuevo-form-input" name="notas" value={form.notas} onChange={handleChange} style={{ minHeight: 60 }} />
+      </label>
+      <button className="uiverse-btn" style={{ marginTop: 12, width: '100%' }} onClick={handleSave}>Agregar cliente</button>
+    </>
   );
 } 
